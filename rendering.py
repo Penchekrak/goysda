@@ -9,6 +9,7 @@ def render_clouds(screen, game_state, config):
         screen.blit(cloud_surface, (cloud.x, cloud.y))
 
 def render(screen, game_state, config):
+    screen.fill(colors.get('black'))
     board_display = pygame.Surface((config['board_width'], config['board_height']))
     render_clouds(screen, game_state, config)
     board_display.fill(colors.get(config['background_color']))

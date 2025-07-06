@@ -90,9 +90,9 @@ def compute_double_touch_points(game_state, game_config):
                 wx, wy = vy, -vx
                 
                 # w is normed to 1
-                wx_new /= np.sqrt(norm(wx, wy))
-                wy_new /= np.sqrt(norm(wx, wy))
-                wx, wy = wx_new, wy_new
+                w_norm = norm(wx, wy)
+                wx /= np.sqrt(w_norm)
+                wy /= np.sqrt(w_norm)
 
                 # what do we need to add? sqrt(4r^2 - |v / 2|^2)
                 add_norm = 4 * r ** 2 - norm(vx, vy) / 4
@@ -124,9 +124,9 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config):
         vx = x1 - x0
         vy = y1 - y0
         # v is normed to 1
-        vx_new /= np.sqrt(norm(vx, vy))
-        vy_new /= np.sqrt(norm(vx, vy))
-        vx, vy = vx_new, vy_new
+        v_norm = norm(vx, vy)
+        vx /= np.sqrt(v_norm)
+        vy /= np.sqrt(v_norm)
         
         perpendicular_points.append((
             x1 + vx * 2 * r,

@@ -6,7 +6,7 @@ class Stone(NamedTuple):
     color: Literal['white', 'black']
 
 class GameState:
-    def __init__(self):
+    def __init__(self, config):
         self.placed_stones = [Stone(x=100, y=100, color='white'), Stone(x=200, y=200, color='black')]
 
     def update(self, user_input):

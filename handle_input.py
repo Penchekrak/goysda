@@ -1,4 +1,14 @@
 from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
+from enum import Enum
+
+class ActionType(Enum):
+    """Типы действий в игре"""
+    QUIT = 'quit'
+    MOUSE_DOWN_LEFT = 'mouse_down_left'
+    MOUSE_DOWN_RIGHT = 'mouse_down_right'
+    MOUSE_UP_LEFT = 'mouse_up_left'
+    MOUSE_UP_RIGHT = 'mouse_up_right'
+    MOUSE_MOTION = 'mouse_motion'
 
 def handle_input(events):
     """
@@ -11,13 +21,13 @@ def handle_input(events):
     Returns:
         dict: словарь с действиями:
             - 'all_actions': list - все действия для дебага
-            - 'last_actions': dict - последние действия каждого типа с ключами:
-                - 'quit': {'action': 'quit'} - выход из игры
-                - 'mouse_down_left': {'action': 'mouse_down', 'button': 'left', 'x': int, 'y': int}
-                - 'mouse_down_right': {'action': 'mouse_down', 'button': 'right', 'x': int, 'y': int}
-                - 'mouse_up_left': {'action': 'mouse_up', 'button': 'left', 'x': int, 'y': int}
-                - 'mouse_up_right': {'action': 'mouse_up', 'button': 'right', 'x': int, 'y': int}
-                - 'mouse_motion': {'action': 'mouse_motion', 'x': int, 'y': int, 'buttons': tuple}
+            - 'last_actions': dict - последние действия каждого типа с ключами ActionType:
+                - ActionType.QUIT: {'action': 'quit'} - выход из игры
+                - ActionType.MOUSE_DOWN_LEFT: {'action': 'mouse_down', 'button': 'left', 'x': int, 'y': int}
+                - ActionType.MOUSE_DOWN_RIGHT: {'action': 'mouse_down', 'button': 'right', 'x': int, 'y': int}
+                - ActionType.MOUSE_UP_LEFT: {'action': 'mouse_up', 'button': 'left', 'x': int, 'y': int}
+                - ActionType.MOUSE_UP_RIGHT: {'action': 'mouse_up', 'button': 'right', 'x': int, 'y': int}
+                - ActionType.MOUSE_MOTION: {'action': 'mouse_motion', 'x': int, 'y': int, 'buttons': tuple}
                   где buttons = (left, middle, right) - 1 если зажата, 0 если нет
     """
     # print(f"{len(user_inputs)=} | {user_inputs=}") # покликал, в массиве всегда один элемент поулчался! 
@@ -32,7 +42,7 @@ def handle_input(events):
         if event.type == QUIT:
             action = {'action': 'quit'}
             actions.append(action)
-            last_actions['quit'] = action
+            last_actions[ActionType.QUIT] = action
         
         elif event.type == MOUSEBUTTONDOWN:
             # Нажатие кнопки мыши
@@ -44,7 +54,7 @@ def handle_input(events):
                     'y': event.pos[1]
                 }
                 actions.append(action)
-                last_actions['mouse_down_left'] = action
+                last_actions[ActionType.MOUSE_DOWN_LEFT] = action
             elif event.button == 3:  # правая кнопка
                 action = {
                     'action': 'mouse_down',
@@ -53,7 +63,7 @@ def handle_input(events):
                     'y': event.pos[1]
                 }
                 actions.append(action)
-                last_actions['mouse_down_right'] = action
+                last_actions[ActionType.MOUSE_DOWN_RIGHT] = action
         
         elif event.type == MOUSEBUTTONUP:
             # Отпускание кнопки мыши
@@ -65,7 +75,7 @@ def handle_input(events):
                     'y': event.pos[1]
                 }
                 actions.append(action)
-                last_actions['mouse_up_left'] = action
+                last_actions[ActionType.MOUSE_UP_LEFT] = action
             elif event.button == 3:  # правая кнопка
                 action = {
                     'action': 'mouse_up',
@@ -74,7 +84,7 @@ def handle_input(events):
                     'y': event.pos[1]
                 }
                 actions.append(action)
-                last_actions['mouse_up_right'] = action
+                last_actions[ActionType.MOUSE_UP_RIGHT] = action
         
         elif event.type == MOUSEMOTION:
             # Движение мыши
@@ -85,7 +95,7 @@ def handle_input(events):
                 'buttons': event.buttons  # (left, middle, right) - какие кнопки зажаты
             }
             actions.append(action)
-            last_actions['mouse_motion'] = action
+            last_actions[ActionType.MOUSE_MOTION] = action
     
     # Возвращаем словарь с полной информацией
     return {

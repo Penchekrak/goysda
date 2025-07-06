@@ -3,7 +3,7 @@ import sys
 from pygame.locals import *
 from game_state import GameState
 from rendering import render
-from handle_input import handle_input
+from handle_input import handle_input, ActionType
 import json
 import utils
 
@@ -27,12 +27,12 @@ if __name__ == "__main__":
 
         user_inputs = handle_input(pygame.event.get())
         user_inputs = user_inputs['last_actions']
-        # print(f"{user_inputs=}")
+        print(f"{user_inputs=}")
 
-        if 'quit' in user_inputs:
+        if ActionType.QUIT in user_inputs:
             pygame.quit()
             sys.exit()
-
+        
         # Update.
         game_state.update(user_inputs)
         # Draw.

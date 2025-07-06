@@ -23,6 +23,10 @@ class GameState:
         self.background_state = 0
         self.suggestion_stone = None
         self.placement_modes = [0, 0] # for each player his own mode
+        
+        # self.background_to_render = 'clouds'
+        self.background_to_render = 'water'
+
 
 
     def update(self, user_input: Tuple[int, int, bool] = None):
@@ -43,7 +47,9 @@ class GameState:
     def handle_keydown(self, action):
         if action["key"] == pygame.K_w:
             self.placement_modes[self.player_to_move] = (self.placement_modes[self.player_to_move] + 1) % 2
-    
+        elif action["key"] == pygame.K_b:
+            self.background_to_render = 'clouds' if self.background_to_render == 'water' else 'water'
+
     def _snap_stone(self, x, y):
         return snap_stone(
             user_input=(x, y, self.placement_modes[self.player_to_move]), 
@@ -75,6 +81,7 @@ class GameState:
         white_territory = sum(stone.color == "white" for stone in self.placed_stones)
         return {
             "Player": player_name,
-            f"Mode ({player_name})": ["nearest possible", "magnet"][self.placement_modes[self.player_to_move]],
-            "Black vs white:": f"{black_territory}-{white_territory} ({black_territory - white_territory})"
+            f"Mode ({player_name}) toggle on W": f'{["nearest possible", "magnet"][self.placement_modes[self.player_to_move]]}',
+            "Black vs white:": f"{black_territory}-{white_territory} ({black_territory - white_territory})",
+            "Toggle background on button:": "B",
         }

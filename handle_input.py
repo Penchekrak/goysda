@@ -1,4 +1,5 @@
-from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, KEYDOWN
+from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, KEYDOWN, K_z, KMOD_LCTRL, KMOD_RCTRL
+from pygame.key import get_mods
 from enum import Enum
 
 class ActionType(Enum):
@@ -10,6 +11,7 @@ class ActionType(Enum):
     MOUSE_UP_RIGHT = 'mouse_up_right'
     MOUSE_MOTION = 'mouse_motion'
     KEY_DOWN = 'key_down'
+    UNDO = 'undo'
 
 
 def handle_input(events):
@@ -99,12 +101,19 @@ def handle_input(events):
             actions.append(action)
             last_actions[ActionType.MOUSE_MOTION] = action
         elif event.type == KEYDOWN:
-            action = {
-                'action': 'key_down',
-                'key': event.key,
-            }
-            actions.append(action)
-            last_actions[ActionType.KEY_DOWN] = action
+            if event.key == K_z and ((get_mods() & KMOD_LCTRL) or (get_mods() & KMOD_RCTRL)):
+                action = {
+                    'action': 'undo'
+                }
+                actions.append(action)
+                last_actions[ActionType.UNDO] = action
+            else:
+                action = {
+                    'action': 'key_down',
+                    'key': event.key,
+                }
+                actions.append(action)
+                last_actions[ActionType.KEY_DOWN] = action
     # Возвращаем словарь с полной информацией
     return {
         'all_actions': actions,

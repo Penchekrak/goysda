@@ -29,7 +29,8 @@ default_config = {
     'stone_border_width': 2,
     'stone_border_radius': 10,
     'cloud_image_path': 'assets/cloud.jpg',
-    'board_blur_radius': 10,
+    'board_blur_radius': 30,
+    'board_color': (204, 102, 0),
 }
 
 def norm(x, y):

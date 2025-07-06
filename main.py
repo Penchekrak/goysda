@@ -27,7 +27,6 @@ if __name__ == "__main__":
 
         user_inputs = handle_input(pygame.event.get())
         user_inputs = user_inputs['last_actions']
-        print(f"{user_inputs=}")
 
         if ActionType.QUIT in user_inputs:
             pygame.quit()

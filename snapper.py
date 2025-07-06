@@ -19,7 +19,6 @@ def snap_stone(user_input, game_state, game_config, snap_color=None):
     """
 
     x, y, snap_to_color = user_input
-    print(x, y, snap_to_color)
 
     # TODO: if not within the board, problems. Fix this.
     if not snap_to_color:

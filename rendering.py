@@ -9,7 +9,7 @@ def create_single_cloud(surface, config):
     for _ in range(int(math.floor(config['cloud_bulkiness'] / 2))):
         pygame.draw.circle(surface, colors.get('white'), (random_cloud_coord[0], random_cloud_coord[1]), config['cloud_bulk_radius'])
         pygame.draw.circle(surface, colors.get('white'), (random_cloud_coord[0] + config['width'], random_cloud_coord[1]), config['cloud_bulk_radius'])
-        random_radius = random.uniform(0, config['cloud_bulk_radius'])
+        random_radius = random.uniform(config['cloud_bulk_radius'] / 2, config['cloud_bulk_radius'])
         random_angle = random.uniform(0, 2 * math.pi)
         random_cloud_coord = (random_cloud_coord[0] + random_radius * math.cos(random_angle), random_cloud_coord[1] + random_radius * math.sin(random_angle))
     for _ in range(int(math.ceil(config['cloud_bulkiness'] / 2))):
@@ -45,7 +45,7 @@ def render_board(screen, game_state, config):
     # board_display = pygame.transform.scale_by(board_display, 1.1)
     board_display = pygame.transform.box_blur(board_display, config['board_blur_radius'])
     transparent_board = pygame.Surface((config['board_width'], config['board_height']), pygame.SRCALPHA)
-    transparent_board.fill(colors.get('white') + (200, ), special_flags=pygame.BLEND_RGBA_ADD)
+    transparent_board.fill(config['board_color'] + (200, ), special_flags=pygame.BLEND_RGBA_ADD)
     board_display.blit(transparent_board, (0, 0))
 
     # отрисовка бордерной зоны

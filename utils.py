@@ -7,7 +7,10 @@ colors = dict(
     red=(255, 0, 0),
     green=(0, 255, 0),
     blue=(0, 0, 255),
+    light_grey=(211, 211, 211),
+    dark_grey=(119, 119, 119),
 )
+
 
 default_config = {
     'width': 480,

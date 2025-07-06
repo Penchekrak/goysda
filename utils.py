@@ -20,3 +20,20 @@ default_config = {
     'stone_border_radius': 10,
     'stone_border_radius': 10,
 }
+
+
+def stone_within_the_board(x, y, game_config):
+    r = game_config.stone_radius
+    w = game_config.width
+    h = game_config.height
+    return (x - r >= 0) and (x + r <= w) and (y - r >= 0) and (y + r <= h)
+
+
+def stone_intersects_others(x0, y0, game_state, game_config):
+    stones = game_state.stones
+    r = game_config.stone_radius
+    for stone in stones:
+        x1, y1 = stone.x, stone.y
+        if (x1 - x0) ** 2 + (y1 - y0) ** 2 < r:
+            return True
+    return False

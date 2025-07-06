@@ -40,15 +40,21 @@ def stone_within_the_board(x, y, game_config):
     Checks if the stone fits within the board.
     """
     r = game_config['stone_radius']
-    w = game_config.width
-    h = game_config.height
-    return (x - r >= 0) and (x + r <= w) and (y - r >= 0) and (y + r <= h)
-
+    w = game_config['board_width']
+    h = game_config['board_height']
+    left = game_config['width'] / 2 - w / 2
+    right = game_config['width'] / 2 + w / 2
+    bottom = game_config['height'] / 2 - h / 2
+    top = game_config['height'] / 2 + h / 2
+    return (x - r >= left) and (x + r <= right) and (y - r >= bottom) and (y + r <= top)
 
 def stone_intersects_others(x0, y0, game_state, game_config):
     """
     Checks if stone does not intersect other stones.
     """
+    if not stone_within_the_board(x0, y0, game_config):
+        return True
+
     stones = game_state.placed_stones
     r = game_config['stone_radius']
     for stone in stones:
@@ -122,6 +128,17 @@ def compute_double_touch_points(game_state, game_config, snap_color=None):
 
     return [s for (s, intersect) in zip(doubletouch_points, is_ok) if not intersect]
     
+def compute_border_touch_points(game_state, game_config, snap_color=None):
+    r = game_config['stone_radius']
+    w = game_config['board_width']
+    h = game_config['board_height']
+    left = game_config['width'] / 2 - w / 2
+    right = game_config['width'] / 2 + w / 2
+    bottom = game_config['height'] / 2 - h / 2
+    top = game_config['height'] / 2 + h / 2
+    
+    # for s in game_state.placed_stones:
+
 def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
 
     x0 += np.random.randn() / 1000

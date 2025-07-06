@@ -22,9 +22,10 @@ default_config = {
     'background_color': 'green',
     'stone_radius': 10,
     'stone_color': 'white',
+    'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
+    
     'stone_border_color': 'black',
     'stone_border_width': 2,
-    'stone_border_radius': 10,
     'stone_border_radius': 10,
     'cloud_image_path': 'assets/cloud.jpg',
 }

@@ -47,7 +47,7 @@ def stone_intersects_others(x0, y0, game_state, game_config):
     r = game_config['stone_radius']
     for stone in stones:
         x1, y1 = stone.x, stone.y
-        if norm(x1 - x0, y1 - y0) < 4 * r ** 2:
+        if norm(x1 - x0, y1 - y0) < 4 * r ** 2 - 10**(-5):
             return True
     return False
 
@@ -118,6 +118,10 @@ def compute_double_touch_points(game_state, game_config, snap_color=None):
     
     
 def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
+
+    x0 += np.random.randn() / 1000
+    x1 += np.random.randn() / 1000
+
     r = game_config['stone_radius']
     perpendicular_points = []
 

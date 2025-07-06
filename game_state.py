@@ -1,6 +1,6 @@
 from typing import Literal, NamedTuple, Tuple, Dict
 from handle_input import ActionType
-from utils import default_config
+from utils import *
 from snapper import snap_stone
 import pygame
 
@@ -50,6 +50,7 @@ class GameState:
             user_input=(x, y, self.placement_modes[self.player_to_move]), 
             game_state=self,
             game_config=default_config,
+            snap_color=('black' if self.player_to_move % 2 == 0 else 'white')
         )
     
     def handle_move(self, action):
@@ -60,6 +61,10 @@ class GameState:
         x, y = self._snap_stone(action["x"], action["y"])
         new_stone = Stone(x=x, y=y, color=['black', 'white'][self.player_to_move])
         self.placed_stones.append(new_stone)
+        current_player_color = ('black' if self.player_to_move % 2 == 0 else 'white')
+        opponent_color = ('white' if self.player_to_move % 2 == 0 else 'black')
+        kill_groups_of_color(opponent_color, self, default_config)
+        kill_groups_of_color(current_player_color, self, default_config)
         self.player_to_move = (self.player_to_move + 1) % 2
     
     def get_list_of_stones_to_draw(self):

@@ -207,6 +207,31 @@ def compute_group(stone_idx, game_state, game_config):
 
     return group
 
+def split_stones_by_groups(game_state, game_config):
+    stones = game_state.placed_stones
+    if not stones:
+        return []
+
+    groups = []
+    visited = set()
+
+    for idx in range(len(stones)):
+        if idx in visited:
+            continue
+        group = compute_group(idx, game_state, game_config)
+        visited.update(group)
+        groups.append(group)
+
+    return groups
+
+def kill_groups_of_color(color, game_state, game_config):
+    groups = split_stones_by_groups(game_state, game_config)
+    for group in groups:
+        if game_state.placed_stones[group[0]].color == color:
+            if not group_has_dame(group, game_state, game_config):
+                # TODO: add KO rule etc
+                kill_group(group, game_state, game_config)
+
 def group_has_dame(group, game_state, game_config):
     r = game_config['stone_radius']
     target_color = game_state.placed_stones[group[0]].color
@@ -216,3 +241,6 @@ def group_has_dame(group, game_state, game_config):
         if norm(x1 - x0, y1 - y0) <= 4 * r ** 2 + 10**(-5):
             return True
     return False
+
+def kill_group(group, game_state, game_config):
+    game_state.placed_stones = [s for i, s in enumerate(game_state.placed_stones) if i not in group]

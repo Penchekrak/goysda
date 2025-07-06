@@ -81,6 +81,7 @@ class GameState:
         white_territory = sum(stone.color == "white" for stone in self.placed_stones)
         return {
             "Player": player_name,
-            f"Mode ({player_name})": ["nearest possible", "magnet"][self.placement_modes[self.player_to_move]],
-            "Black vs white:": f"{black_territory}-{white_territory} ({black_territory - white_territory})"
+            f"Mode ({player_name}) toggle on W": f'{["nearest possible", "magnet"][self.placement_modes[self.player_to_move]]}',
+            "Black vs white:": f"{black_territory}-{white_territory} ({black_territory - white_territory})",
+            "Toggle background on button:": "B",
         }

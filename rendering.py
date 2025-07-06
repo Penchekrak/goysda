@@ -83,10 +83,7 @@ def render(screen, game_state, config):
     
     info = game_state.get_info()
     font = pygame.font.Font('freesansbold.ttf', 12)
-    text = font.render("\n".join(
-        [f"{key}: {value}" for key, value in info.items()]
-        + [f"Toggle background on button: B"]
-    ), antialias=True, color="white") 
+    text = font.render("\n".join([f"{key}: {value}" for key, value in info.items()]), antialias=True, color="white") 
     
     
     # change_background_info_text = font.render(f"Toggle background on button: B", antialias=True, color="white") 

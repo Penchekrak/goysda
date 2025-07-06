@@ -25,14 +25,16 @@ if __name__ == "__main__":
     # Game loop.
     while True:
 
-        user_input = handle_input(pygame.event.get())
-
-        if user_input == 'quit':
+        user_inputs = handle_input(pygame.event.get())
+        # print(f"{len(user_inputs)=} | {user_inputs=}") # покликал, в массиве всегда один элемент поулчался! 
+        # Но на всякий случай оставил список пусть будет. Для простоты логике вначале, будем считать, что в списке всегда одно действие.
+        # Быстрым перемещением мыши получил два события: len(user_inputs)=2 | user_inputs=[{'action': 'mouse_motion', 'x': 160, 'y': 328, 'buttons': (1, 0, 0)}, {'action': 'mouse_motion', 'x': 161, 'y': 328, 'buttons': (1, 0, 0)}]
+        if 'quit' in [user_input['action'] for user_input in user_inputs]:
             pygame.quit()
             sys.exit()
 
         # Update.
-        game_state.update(user_input)
+        game_state.update(user_inputs)
         # Draw.
         render(screen, game_state, config)
         pygame.display.flip()

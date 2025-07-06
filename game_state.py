@@ -14,16 +14,13 @@ class Stone(NamedTuple):
     y: int
     color: Literal['white', 'black', 'light_grey', 'dark_grey']
 
-class Cloud(NamedTuple):
-    x: int
-    y: int
 
 
 class GameState:
     def __init__(self, config):
         self.placed_stones = []
         self.player_to_move = 0
-        self.cloud_state = [Cloud(x=0, y=0)]
+        self.background_state = 0
         self.suggestion_stone = None
         self.placement_modes = [0, 0] # for each player his own mode
 
@@ -40,6 +37,8 @@ class GameState:
         keyboard_action = user_input.get(ActionType.KEY_DOWN, {})
         if keyboard_action:
             self.handle_keydown(keyboard_action)
+
+        self.background_state = (self.background_state + 1) % default_config['width']
     
     def handle_keydown(self, action):
         if action["key"] == pygame.K_w:

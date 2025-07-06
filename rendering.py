@@ -1,20 +1,47 @@
 import pygame
 from utils import colors
+import random
+import math
+from utils import default_config
+
+def create_single_cloud(surface, config):
+    random_cloud_coord = (random.randint(0, config['width']), random.randint(0, config['height']))
+    for _ in range(int(math.floor(config['cloud_bulkiness'] / 2))):
+        pygame.draw.circle(surface, colors.get('white'), (random_cloud_coord[0], random_cloud_coord[1]), config['cloud_bulk_radius'])
+        pygame.draw.circle(surface, colors.get('white'), (random_cloud_coord[0] + config['width'], random_cloud_coord[1]), config['cloud_bulk_radius'])
+        random_radius = random.uniform(0, config['cloud_bulk_radius'])
+        random_angle = random.uniform(0, 2 * math.pi)
+        random_cloud_coord = (random_cloud_coord[0] + random_radius * math.cos(random_angle), random_cloud_coord[1] + random_radius * math.sin(random_angle))
+    for _ in range(int(math.ceil(config['cloud_bulkiness'] / 2))):
+        pygame.draw.circle(surface, colors.get('light_grey'), (random_cloud_coord[0], random_cloud_coord[1]), config['cloud_bulk_radius'])
+        pygame.draw.circle(surface, colors.get('light_grey'), (random_cloud_coord[0] + config['width'], random_cloud_coord[1]), config['cloud_bulk_radius'])
+        random_radius = random.uniform(0, config['cloud_bulk_radius'])
+        random_angle = random.uniform(0, 2 * math.pi)
+        random_cloud_coord = (random_cloud_coord[0] + random_radius * math.cos(random_angle), random_cloud_coord[1] + random_radius * math.sin(random_angle))
+    return surface
+
+def create_clouds(config):
+    surface = pygame.Surface((config['width'] * 2, config['height']))
+    surface.fill(colors.get('blue'))
+    for _ in range(config['cloud_count']):
+        create_single_cloud(surface, config)
+    return surface
+
+cloudy_surface = create_clouds(default_config)
 
 def render_clouds(screen, game_state, config):
-    cloud_surface = pygame.image.load(config['cloud_image_path']).convert()
-    cloud_surface = pygame.transform.scale(cloud_surface, (config['cloud_scale'] * cloud_surface.get_width(), config['cloud_scale'] * cloud_surface.get_height()))
-    cloud_state = game_state.cloud_state
-    for cloud in cloud_state:
-        screen.blit(cloud_surface, (cloud.x, cloud.y))
+    screen.blit(cloudy_surface, (game_state.background_state - config['width'], 0))
 
+def render_background(screen, game_state, config):
+    if getattr(game_state, 'background_to_render', 'clouds') == 'clouds':
+        render_clouds(screen, game_state, config)
+    else:
+        screen.fill(colors.get('black'))
 
-def render(screen, game_state, config):
-    screen.fill(colors.get('black'))
+def render_board(screen, game_state, config):
     board_display = pygame.Surface((config['board_width'], config['board_height']))
-    render_clouds(screen, game_state, config)
     board_display.fill(colors.get(config['background_color']))
-
+    
     # отрисовка бордерной зоны
     delta_x, delta_y = (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
     for placed_stone in game_state.get_list_of_stones_to_draw():
@@ -35,6 +62,14 @@ def render(screen, game_state, config):
         )
     
     screen.blit(board_display, (delta_x, delta_y))
+
+
+
+def render(screen, game_state, config):
+    screen.fill(colors.get('black'))
+    render_background(screen, game_state, config)
+    render_board(screen, game_state, config)
+    
     info = game_state.get_info()
     font = pygame.font.Font('freesansbold.ttf', 12)
     text = font.render("\n".join(f"{key}: {value}" for key, value in info.items()), antialias=True, color="white") 

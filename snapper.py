@@ -1,4 +1,4 @@
-def snap_stone(user_input, snap_color=None, r=1.0):
+def snap_stone(user_input, game_config, game_state, snap_color=None, r=1.0):
     """
     If snap_to_color is False, then:
     * if stone can be placed at (x, y) we keep them
@@ -8,9 +8,15 @@ def snap_stone(user_input, snap_color=None, r=1.0):
 
     Arguments: 
     user_input: a tuple (x, y, snap_to_color)
+    game_config: configuration of the game (probably thing like board shape etc)
+    game_state: state of the game: (existing stone placements etc)
     snap_color: color to force-snap to
     r: radius of the stones
 
     Returns:
     A tuple (x, y) - a position of the stone placement suggestion that should appear on the screen.
     """
+
+    x, y, snap_to_color = user_input
+
+    return x, y

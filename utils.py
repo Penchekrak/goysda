@@ -11,16 +11,15 @@ colors = dict(
     dark_grey=(119, 119, 119),
 )
 
-
 default_config = {
-    'width': 480,
-    'height': 480,
+    'width': 860,
+    'height': 860,
     'fps': 60,
-    'board_width': 300,
-    'board_height': 300,
+    'board_width': 720,
+    'board_height': 720,
     'cloud_scale': 0.25,
     'background_color': 'green',
-    'stone_radius': 10,
+    'stone_radius': 720 / 26,
     'stone_color': 'white',
     'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
     'cloud_count': 10,
@@ -224,12 +223,16 @@ def compute_perpendicular_border_touches(x, y, game_state, game_config, snap_col
 
     return [s for (s, intersect) in zip(touches, is_ok) if not intersect]
 
-def compute_closest_snap_position(x, y, game_state, game_config, snap_color=None):
-    dt_poitns = compute_double_touch_points(game_state, game_config, snap_color)
+def compute_closest_snap_position(x, y, game_state, game_config, snap_color=None, precomputed_doubletouch_points=None):
+    if precomputed_doubletouch_points:
+        dt_points = precomputed_doubletouch_points
+    else:
+        dt_points = compute_double_touch_points(game_state, game_config, snap_color)
+
     pd_points = compute_perpendicular_touches(x, y, game_state, game_config, snap_color)
     bt_points = compute_border_touch_points(game_state, game_config, snap_color)
     pbd_points = compute_perpendicular_border_touches(x, y, game_state, game_config, snap_color)
-    possible_closest_points = dt_poitns + pd_points + bt_points + pbd_points
+    possible_closest_points = dt_points + pd_points + bt_points + pbd_points
 
     min_d = np.inf
     xc = 0.0
@@ -307,10 +310,12 @@ def kill_groups_of_color(color, game_state, game_config):
 def group_has_dame(group, game_state, game_config):
     r = game_config['stone_radius']
     target_color = game_state.placed_stones[group[0]].color
+
+    dt_points = compute_double_touch_points(game_state, game_config, None)    
     for i in group:
         s = game_state.placed_stones[i]
         x0, y0 = s.x, s.y
-        x1, y1 = compute_closest_snap_position(x0, y0, game_state, game_config, snap_color=target_color)
+        x1, y1 = compute_closest_snap_position(x0, y0, game_state, game_config, snap_color=None, precomputed_doubletouch_points=dt_points)
         if norm(x1 - x0, y1 - y0) <= 4 * r ** 2 + 10**(-5):
             return True
     return False

@@ -142,6 +142,10 @@ def compute_border_touch_points(game_state, game_config, snap_color=None):
     bordertouch_points = []
 
     for s in game_state.placed_stones:
+
+        if s.color != snap_color:
+            continue
+
         x, y = s.x, s.y
 
         if x - left <= 2 * r:
@@ -210,6 +214,9 @@ def compute_perpendicular_border_touches(x, y, game_state, game_config, snap_col
     bottom = game_config['height'] / 2 - h / 2 + r
     top = game_config['height'] / 2 + h / 2 - r
     
+    if snap_color:
+        return []
+
     touches = [
         (x, top),
         (x, bottom),

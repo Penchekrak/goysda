@@ -13,6 +13,9 @@ default_config = {
     'width': 480,
     'height': 480,
     'fps': 60,
+    'board_width': 300,
+    'board_height': 300,
+    'cloud_scale': 0.25,
     'background_color': 'green',
     'stone_radius': 10,
     'stone_color': 'white',
@@ -20,6 +23,7 @@ default_config = {
     'stone_border_width': 2,
     'stone_border_radius': 10,
     'stone_border_radius': 10,
+    'cloud_image_path': 'assets/cloud.jpg',
 }
 
 def norm(x, y):

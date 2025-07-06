@@ -157,3 +157,5 @@ cython_debug/
 *.glg
 *.glsdefs
 *.xdy
+
+goysda_env/

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import numpy as np
 
 colors = dict(
     white=(255, 255, 255),
@@ -21,8 +22,13 @@ default_config = {
     'stone_border_radius': 10,
 }
 
+def norm(x, y):
+    return x ** 2 + y ** 2
 
 def stone_within_the_board(x, y, game_config):
+    """
+    Checks if the stone fits within the board.
+    """
     r = game_config.stone_radius
     w = game_config.width
     h = game_config.height
@@ -30,6 +36,9 @@ def stone_within_the_board(x, y, game_config):
 
 
 def stone_intersects_others(x0, y0, game_state, game_config):
+    """
+    Checks if stone does not intersect other stones.
+    """
     stones = game_state.stones
     r = game_config.stone_radius
     for stone in stones:
@@ -37,3 +46,63 @@ def stone_intersects_others(x0, y0, game_state, game_config):
         if (x1 - x0) ** 2 + (y1 - y0) ** 2 < r:
             return True
     return False
+
+def multiple_stones_intersect_others(new_stones_coords, game_state, game_config):
+    """
+    For each of the coords, checks if stone does not intersect other stones.
+    NOTE: highly inefficient.
+    TODO: rewrite this.
+    """
+    return [stone_intersects_others(s, game_state, game_config) for s in new_stones_coords]
+
+def compute_double_touch_points(game_state, game_config):
+    """
+    Returns all possible placements where the point would touch two other stones simultaneously.
+    """
+    r = game_config.stone_radius
+    doubletouch_points = []
+    for s1 in game_state.stones:
+        for s2 in game_state.stones:
+            x1, y1 = s1.x, s1.y
+            x2, y2 = s2.x, s2.y
+
+            # v is the s1 -> s2 vector
+            vx = x2 - x1
+            vy = y2 - y1
+
+            if norm(vx, vy) > 16 * r ** 2:
+                continue # no double touches
+            elif norm(vx, vy) == 16 * r ** 2:
+                doubletouch_points.append((
+                    x1 + vx / 2, 
+                    y1 + vy / 2
+                ))
+            else:
+                # w is orthogonal to v
+                wx, wy = vy, -vx
+                
+                # w is normed to 1
+                wx /= np.sqrt(norm(wx, wy))
+                wy /= np.sqrt(norm(wx, wy))
+
+                # what do we need to add? sqrt(4r^2 - |v / 2|^2)
+                add_norm = 4 * r ** 2 - norm(vx, vy) / 4
+                wx *= np.sqrt(add_norm)
+                wy *= np.sqrt(add_norm)
+
+                doubletouch_points.append((
+                    x1 + vx / 2 + wx,
+                    y1 + vy / 2 + wy,
+                ))
+                doubletouch_points.append((
+                    x1 + vx / 2 - wx,
+                    y1 + vy / 2 - wy,
+                ))
+
+    is_ok = multiple_stones_intersect_others(doubletouch_points, game_state, game_config)
+
+    return [s for (s, ok) in zip(doubletouch_points, is_ok) if ok]
+    
+    
+def compute_perpendicular_touches(x, y, game_state, game_config):
+    r = game_config.stone_radius

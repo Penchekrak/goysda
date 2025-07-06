@@ -24,6 +24,7 @@ def snap_stone(user_input, game_config, game_state, snap_color=None):
     if not snap_to_color:
         if stone_within_the_board(x,y, game_config) and not stone_intersects_others(x, y, game_state):
             return x, y
+        
 
 
     return x, y

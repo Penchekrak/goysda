@@ -1,4 +1,4 @@
-from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION
+from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, KEYDOWN
 from enum import Enum
 
 class ActionType(Enum):
@@ -9,6 +9,8 @@ class ActionType(Enum):
     MOUSE_UP_LEFT = 'mouse_up_left'
     MOUSE_UP_RIGHT = 'mouse_up_right'
     MOUSE_MOTION = 'mouse_motion'
+    KEY_DOWN = 'key_down'
+
 
 def handle_input(events):
     """
@@ -96,7 +98,13 @@ def handle_input(events):
             }
             actions.append(action)
             last_actions[ActionType.MOUSE_MOTION] = action
-    
+        elif event.type == KEYDOWN:
+            action = {
+                'action': 'key_down',
+                'key': event.key,
+            }
+            actions.append(action)
+            last_actions[ActionType.KEY_DOWN] = action
     # Возвращаем словарь с полной информацией
     return {
         'all_actions': actions,

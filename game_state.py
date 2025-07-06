@@ -2,6 +2,8 @@ from typing import Literal, NamedTuple, Tuple
 from handle_input import ActionType
 from utils import default_config
 from snapper import snap_stone
+import pygame
+
 
 def snapping_mock(stone, list_of_stones):
     return stone
@@ -23,6 +25,7 @@ class GameState:
         self.player_to_move = 0
         self.cloud_state = [Cloud(x=0, y=0)]
         self.suggestion_stone = None
+        self.placement_modes = [0, 0] # for each player his own mode
 
 
     def update(self, user_input: Tuple[int, int, bool] = None):
@@ -32,26 +35,29 @@ class GameState:
         
         move_action = user_input.get(ActionType.MOUSE_MOTION, {})
         if move_action:
-            print(move_action)
             self.handle_move(move_action)
+        
+        keyboard_action = user_input.get(ActionType.KEY_DOWN, {})
+        if keyboard_action:
+            self.handle_keydown(keyboard_action)
     
-    def handle_move(self, action):
-        x, y = action["x"], action["y"]
-        x, y = snap_stone(
-            user_input=(x, y, False), 
+    def handle_keydown(self, action):
+        if action["key"] == pygame.K_w:
+            self.placement_modes[self.player_to_move] = (self.placement_modes[self.player_to_move] + 1) % 2
+    
+    def _snap_stone(self, x, y):
+        return snap_stone(
+            user_input=(x, y, self.placement_modes[self.player_to_move]), 
             game_state=self,
             game_config=default_config,
         )
+    
+    def handle_move(self, action):
+        x, y = self._snap_stone(action["x"], action["y"])
         self.suggestion_stone = Stone(x=x, y=y, color=['light_grey', 'dark_grey'][self.player_to_move])
 
     def handle_click(self, action):
-        x, y = action["x"], action["y"]
-        x, y = snap_stone(
-            user_input=(x, y, False), 
-            game_state=self,
-            game_config=default_config,
-        )
-
+        x, y = self._snap_stone(action["x"], action["y"])
         new_stone = Stone(x=x, y=y, color=['white', 'black'][self.player_to_move])
         self.placed_stones.append(new_stone)
         self.player_to_move = (self.player_to_move + 1) % 2

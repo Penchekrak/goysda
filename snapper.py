@@ -1,4 +1,4 @@
-from utils import stone_within_the_board, stone_intersects_others
+from utils import *
 
 def snap_stone(user_input, game_config, game_state, snap_color=None):
     """
@@ -19,12 +19,23 @@ def snap_stone(user_input, game_config, game_state, snap_color=None):
     """
 
     x, y, snap_to_color = user_input
-    r = game_config.stone_radius
 
-    if not snap_to_color:
-        if stone_within_the_board(x,y, game_config) and not stone_intersects_others(x, y, game_state):
-            return x, y
-        
+    # TODO: if not within the board, problems. Fix this.
+    if not stone_intersects_others(x, y, game_state, game_config):
+        return x, y
+    else:
+        dt_poitns = compute_double_touch_points(game_state, game_config)
+        pd_points = compute_perpendicular_touches(x, y, game_state, game_config)
+        possible_closest_points = dt_poitns + pd_points
 
+        min_d = np.inf
+        xc = 0.0
+        yc = 0.0
 
-    return x, y
+        for (x1, y1) in possible_closest_points:
+            d = norm(x1 - x, y1 - y)
+            if d < min_d:
+                xc, yc = x1, y1
+                d = min_d
+            
+        return xc, yc

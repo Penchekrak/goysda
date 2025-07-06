@@ -101,7 +101,7 @@ def handle_input(events):
             actions.append(action)
             last_actions[ActionType.MOUSE_MOTION] = action
         elif event.type == KEYDOWN:
-            if event.key == K_z and ((get_mods() & KMOD_LCTRL) or (get_mods() & KMOD_RCTRL)):
+            if event.key == K_z:
                 action = {
                     'action': 'undo'
                 }

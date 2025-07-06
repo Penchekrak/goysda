@@ -24,31 +24,34 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((config['width'], config['height']))
 
     game_state = GameState(config)
-    game_states_stack = [game_state]
+    game_states_stack = [copy.deepcopy(game_state)]
     # Game loop.
     while True:
         prof = None
-        if len(game_state.placed_stones) > 20:
+        if len(game_state.placed_stones) == 50:
             prof = pyinstrument.Profiler()
             prof.start()
         user_inputs = handle_input(pygame.event.get())
         user_inputs = user_inputs['last_actions']
+        print(f"{user_inputs=}")
 
         if ActionType.QUIT in user_inputs:
             pygame.quit()
             sys.exit()
 
         if ActionType.UNDO in user_inputs:
-            game_state = game_states_stack[-1]
+            print(f"UNDO")
+            game_state = copy.deepcopy(game_states_stack[-2])
+            game_states_stack.pop()
         
         # Update.
         game_state.update(user_inputs)
-        if len(game_state.placed_stones) != len(game_states_stack[-1].placed_stones):
+        if ActionType.MOUSE_DOWN_LEFT in user_inputs or ActionType.MOUSE_DOWN_RIGHT in user_inputs:
             game_states_stack.append(copy.deepcopy(game_state))
         
         if prof:
             prof.stop()
-            prof.print()
+            prof.write_html('profile.html')
             prof = None
 
         # Draw.

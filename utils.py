@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import numpy as np
+from functools import lru_cache
 
 colors = dict(
     white=(255, 255, 255),

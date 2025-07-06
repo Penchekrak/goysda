@@ -177,7 +177,7 @@ def compute_group(stone_idx, game_state, game_config):
     r = game_config['stone_radius']
     stones = game_state.placed_stones
 
-    target_color = stones[stone_idx]["color"]
+    target_color = stones[stone_idx].color
     threshold_sq = 4 * r ** 2
 
     visited = set()
@@ -191,17 +191,17 @@ def compute_group(stone_idx, game_state, game_config):
         visited.add(idx)
 
         stone = stones[idx]
-        if stone["color"] != target_color:
+        if stone.color != target_color:
             continue
 
         group.append(idx)
 
-        sx, sy = stone["x"], stone["y"]
+        sx, sy = stone.x, stone.y
         for j, other in enumerate(stones):
-            if j in visited or other["color"] != target_color:
+            if j in visited or other.color != target_color:
                 continue
-            dx = other["x"] - sx
-            dy = other["y"] - sy
+            dx = other.x - sx
+            dy = other.y - sy
             if dx * dx + dy * dy <= threshold_sq + 10**(-5):
                 stack.append(j)
 
@@ -226,16 +226,19 @@ def split_stones_by_groups(game_state, game_config):
 
 def kill_groups_of_color(color, game_state, game_config):
     groups = split_stones_by_groups(game_state, game_config)
+    stones_to_kill = []
     for group in groups:
         if game_state.placed_stones[group[0]].color == color:
             if not group_has_dame(group, game_state, game_config):
                 # TODO: add KO rule etc
-                kill_group(group, game_state, game_config)
+                stones_to_kill += group
+    kill_group(stones_to_kill, game_state, game_config)
 
 def group_has_dame(group, game_state, game_config):
     r = game_config['stone_radius']
     target_color = game_state.placed_stones[group[0]].color
-    for s in group:
+    for i in group:
+        s = game_state.placed_stones[i]
         x0, y0 = s.x, s.y
         x1, y1 = compute_closest_snap_position(x0, y0, game_state, game_config, snap_color=target_color)
         if norm(x1 - x0, y1 - y0) <= 4 * r ** 2 + 10**(-5):

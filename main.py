@@ -7,6 +7,7 @@ from handle_input import handle_input, ActionType
 import json
 import utils
 import copy 
+import pyinstrument
 
 if __name__ == "__main__":
     config = {}
@@ -26,7 +27,10 @@ if __name__ == "__main__":
     game_states_stack = [game_state]
     # Game loop.
     while True:
-
+        prof = None
+        if len(game_state.placed_stones) > 20:
+            prof = pyinstrument.Profiler()
+            prof.start()
         user_inputs = handle_input(pygame.event.get())
         user_inputs = user_inputs['last_actions']
 
@@ -41,6 +45,11 @@ if __name__ == "__main__":
         game_state.update(user_inputs)
         if len(game_state.placed_stones) != len(game_states_stack[-1].placed_stones):
             game_states_stack.append(copy.deepcopy(game_state))
+        
+        if prof:
+            prof.stop()
+            prof.print()
+            prof = None
 
         # Draw.
         render(screen, game_state, config)

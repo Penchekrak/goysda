@@ -6,6 +6,7 @@ from rendering import render
 from handle_input import handle_input, ActionType
 import json
 import utils
+import copy 
 
 if __name__ == "__main__":
     config = {}
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((config['width'], config['height']))
 
     game_state = GameState(config)
+    game_states_stack = [game_state]
     # Game loop.
     while True:
 
@@ -31,9 +33,15 @@ if __name__ == "__main__":
         if ActionType.QUIT in user_inputs:
             pygame.quit()
             sys.exit()
+
+        if ActionType.UNDO in user_inputs:
+            game_state = game_states_stack[-1]
         
         # Update.
         game_state.update(user_inputs)
+        if len(game_state.placed_stones) != len(game_states_stack[-1].placed_stones):
+            game_states_stack.append(copy.deepcopy(game_state))
+
         # Draw.
         render(screen, game_state, config)
         pygame.display.flip()

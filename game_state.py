@@ -2,6 +2,7 @@ from typing import Literal, NamedTuple, Tuple, Dict
 from handle_input import ActionType
 from utils import *
 from snapper import snap_stone
+from enum import Enum
 import pygame
 
 
@@ -15,6 +16,12 @@ class Stone(NamedTuple):
     color: Literal['white', 'black', 'light_grey', 'dark_grey']
 
 
+
+class PlacementsModes(Enum):
+    nearest_possible = "Nearest possible"
+    snap_to_my_color = "Snap to my color"
+    snap_to_opponent_colors = "Snap to opponent color"
+    
 
 class GameState:
     def __init__(self, config):
@@ -48,6 +55,7 @@ class GameState:
         self.background_state = (self.background_state + 1) % default_config['width']
     
     def handle_keydown(self, action):
+        keyboard_digits = [pygame.K_1, pygame.K_2, pygame.K_3]
         if action["key"] == pygame.K_w:
             self.placement_modes[self.player_to_move] = (self.placement_modes[self.player_to_move] + 1) % 2
         elif action["key"] == pygame.K_b:
@@ -57,11 +65,18 @@ class GameState:
 
 
     def _snap_stone(self, x, y):
+        mode = list(PlacementsModes)[self.placement_modes[self.player_to_move]]
+        is_not_nearest_possible = (mode != PlacementsModes.nearest_possible)
+        if ((self.player_to_move == 0) == (mode == PlacementsModes.snap_to_my_color)):
+            snap_color = 'black'
+        else:
+            snap_color = 'white'
+
         return snap_stone(
-            user_input=(x, y, self.placement_modes[self.player_to_move]), 
+            user_input=(x, y, is_not_nearest_possible), 
             game_state=self,
             game_config=default_config,
-            snap_color=('black' if self.player_to_move % 2 == 0 else 'white')
+            snap_color=snap_color if is_not_nearest_possible else None,
         )
     
     def handle_move(self, action):

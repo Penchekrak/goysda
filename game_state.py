@@ -57,7 +57,9 @@ class GameState:
     def handle_keydown(self, action):
         keyboard_digits = [pygame.K_1, pygame.K_2, pygame.K_3]
         if action["key"] == pygame.K_w:
-            self.placement_modes[self.player_to_move] = (self.placement_modes[self.player_to_move] + 1) % 2
+            self.placement_modes[self.player_to_move] = (self.placement_modes[self.player_to_move] + 1) % len(PlacementsModes)
+        elif action["key"] in keyboard_digits:
+            self.placement_modes[self.player_to_move] = keyboard_digits.index(action["key"])
         elif action["key"] == pygame.K_b:
             self.background_to_render = 'clouds' if self.background_to_render == 'water' else 'water'
         elif action["key"] == pygame.K_n:
@@ -102,7 +104,7 @@ class GameState:
         white_territory = sum(stone.color == "white" for stone in self.placed_stones)
         return {
             "Player": player_name,
-            f"Mode ({player_name}) toggle on W": f'{["nearest possible", "magnet"][self.placement_modes[self.player_to_move]]}',
+            f"{player_name} mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
             "Black vs white": f"{black_territory}-{white_territory} ({black_territory - white_territory})",
             "Toggle background on button": "B",
             "Toggle board on button": "N",

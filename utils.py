@@ -23,7 +23,9 @@ default_config = {
     'stone_radius': 10,
     'stone_color': 'white',
     'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
-    
+    'cloud_count': 10,
+    'cloud_bulkiness': 10,
+    'cloud_bulk_radius': 10,
     'stone_border_color': 'black',
     'stone_border_width': 2,
     'stone_border_radius': 10,

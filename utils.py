@@ -47,7 +47,7 @@ def stone_intersects_others(x0, y0, game_state, game_config):
     r = game_config['stone_radius']
     for stone in stones:
         x1, y1 = stone.x, stone.y
-        if (x1 - x0) ** 2 + (y1 - y0) ** 2 < r:
+        if norm(x1 - x0, y1 - y0) < 4 * r ** 2:
             return True
     return False
 
@@ -57,7 +57,7 @@ def multiple_stones_intersect_others(new_stones_coords, game_state, game_config)
     NOTE: highly inefficient.
     TODO: rewrite this.
     """
-    return [stone_intersects_others(s, game_state, game_config) for s in new_stones_coords]
+    return [stone_intersects_others(*s, game_state, game_config) for s in new_stones_coords]
 
 def compute_double_touch_points(game_state, game_config):
     """
@@ -67,8 +67,12 @@ def compute_double_touch_points(game_state, game_config):
     doubletouch_points = []
     for s1 in game_state.stones:
         for s2 in game_state.stones:
+
             x1, y1 = s1.x, s1.y
             x2, y2 = s2.x, s2.y
+
+            if x1 == x2 and y1 == y2:
+                continue
 
             # v is the s1 -> s2 vector
             vx = x2 - x1
@@ -105,7 +109,7 @@ def compute_double_touch_points(game_state, game_config):
 
     is_ok = multiple_stones_intersect_others(doubletouch_points, game_state, game_config)
 
-    return [s for (s, ok) in zip(doubletouch_points, is_ok) if ok]
+    return [s for (s, intersect) in zip(doubletouch_points, is_ok) if not intersect]
     
     
 def compute_perpendicular_touches(x0, y0, game_state, game_config):
@@ -133,4 +137,4 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config):
 
     is_ok = multiple_stones_intersect_others(perpendicular_points, game_state, game_config)
 
-    return [s for (s, ok) in zip(perpendicular_points, is_ok) if ok]
+    return [s for (s, intersect) in zip(perpendicular_points, is_ok) if not intersect]

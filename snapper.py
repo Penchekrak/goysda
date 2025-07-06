@@ -19,6 +19,7 @@ def snap_stone(user_input, game_state, game_config, snap_color=None):
     """
 
     x, y, snap_to_color = user_input
+    print(x, y, snap_to_color)
 
     # TODO: if not within the board, problems. Fix this.
     if not stone_intersects_others(x, y, game_state, game_config):
@@ -36,6 +37,6 @@ def snap_stone(user_input, game_state, game_config, snap_color=None):
             d = norm(x1 - x, y1 - y)
             if d < min_d:
                 xc, yc = x1, y1
-                d = min_d
+                min_d = d
             
         return xc, yc

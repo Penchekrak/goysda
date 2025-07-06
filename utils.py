@@ -123,7 +123,7 @@ def compute_double_touch_points(game_state, game_config, snap_color=None):
 def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
 
     x0 += np.random.randn() / 1000
-    x1 += np.random.randn() / 1000
+    y0 += np.random.randn() / 1000
 
     r = game_config['stone_radius']
     perpendicular_points = []

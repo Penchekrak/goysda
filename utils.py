@@ -33,7 +33,7 @@ def stone_within_the_board(x, y, game_config):
     """
     Checks if the stone fits within the board.
     """
-    r = game_config.stone_radius
+    r = game_config['stone_radius']
     w = game_config.width
     h = game_config.height
     return (x - r >= 0) and (x + r <= w) and (y - r >= 0) and (y + r <= h)
@@ -44,7 +44,7 @@ def stone_intersects_others(x0, y0, game_state, game_config):
     Checks if stone does not intersect other stones.
     """
     stones = game_state.stones
-    r = game_config.stone_radius
+    r = game_config['stone_radius']
     for stone in stones:
         x1, y1 = stone.x, stone.y
         if (x1 - x0) ** 2 + (y1 - y0) ** 2 < r:
@@ -63,7 +63,7 @@ def compute_double_touch_points(game_state, game_config):
     """
     Returns all possible placements where the point would touch two other stones simultaneously.
     """
-    r = game_config.stone_radius
+    r = game_config['stone_radius']
     doubletouch_points = []
     for s1 in game_state.stones:
         for s2 in game_state.stones:
@@ -109,7 +109,7 @@ def compute_double_touch_points(game_state, game_config):
     
     
 def compute_perpendicular_touches(x0, y0, game_state, game_config):
-    r = game_config.stone_radius
+    r = game_config['stone_radius']
     perpendicular_points = []
 
     for s in game_state.stones:
@@ -132,5 +132,5 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config):
         ))
 
     is_ok = multiple_stones_intersect_others(perpendicular_points, game_state, game_config)
-    
+
     return [s for (s, ok) in zip(perpendicular_points, is_ok) if ok]

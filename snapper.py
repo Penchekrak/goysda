@@ -1,6 +1,6 @@
 from utils import *
 
-def snap_stone(user_input, game_config, game_state, snap_color=None):
+def snap_stone(user_input, game_state, game_config, snap_color=None):
     """
     If snap_to_color is False, then:
     * if stone can be placed at (x, y) we keep them
@@ -10,8 +10,8 @@ def snap_stone(user_input, game_config, game_state, snap_color=None):
 
     Arguments: 
     user_input: a tuple (x, y, snap_to_color)
-    game_config: configuration of the game (probably thing like board shape etc)
     game_state: state of the game: (existing stone placements etc)
+    game_config: configuration of the game (probably thing like board shape etc)
     snap_color: color to force-snap to
 
     Returns:

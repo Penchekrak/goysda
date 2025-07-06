@@ -132,12 +132,36 @@ def compute_border_touch_points(game_state, game_config, snap_color=None):
     r = game_config['stone_radius']
     w = game_config['board_width']
     h = game_config['board_height']
-    left = game_config['width'] / 2 - w / 2
-    right = game_config['width'] / 2 + w / 2
-    bottom = game_config['height'] / 2 - h / 2
-    top = game_config['height'] / 2 + h / 2
+    left = game_config['width'] / 2 - w / 2 + r
+    right = game_config['width'] / 2 + w / 2 - r
+    bottom = game_config['height'] / 2 - h / 2 + r
+    top = game_config['height'] / 2 + h / 2 - r
     
-    # for s in game_state.placed_stones:
+    bordertouch_points = []
+
+    for s in game_state.placed_stones:
+        x, y = s.x, s.y
+
+        if x - left <= 2 * r:
+            add = 4 * r ** 2 - (x - left) ** 2
+            bordertouch_points.append((left, y + np.sqrt(add)))
+            bordertouch_points.append((left, y - np.sqrt(add)))
+        if right - x <= 2 * r:
+            add = 4 * r ** 2 - (right - x) ** 2
+            bordertouch_points.append((right, y + np.sqrt(add)))
+            bordertouch_points.append((right, y - np.sqrt(add)))
+        if y - bottom <= 2 * r:
+            add = 4 * r ** 2 - (y - bottom) ** 2
+            bordertouch_points.append((x + np.sqrt(add), bottom))
+            bordertouch_points.append((x - np.sqrt(add), bottom))
+        if top - y <= 2 * r:
+            add = 4 * r ** 2 - (top - y) ** 2
+            bordertouch_points.append((x + np.sqrt(add), top))
+            bordertouch_points.append((x - np.sqrt(add), top))
+    
+    is_ok = multiple_stones_intersect_others(bordertouch_points, game_state, game_config)
+
+    return [s for (s, intersect) in zip(bordertouch_points, is_ok) if not intersect]
 
 def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
 
@@ -175,10 +199,36 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=No
 
     return [s for (s, intersect) in zip(perpendicular_points, is_ok) if not intersect]
 
+def compute_perpendicular_border_touches(x, y, game_state, game_config, snap_color=None):
+    r = game_config['stone_radius']
+    w = game_config['board_width']
+    h = game_config['board_height']
+    left = game_config['width'] / 2 - w / 2 + r
+    right = game_config['width'] / 2 + w / 2 - r
+    bottom = game_config['height'] / 2 - h / 2 + r
+    top = game_config['height'] / 2 + h / 2 - r
+    
+    touches = [
+        (x, top),
+        (x, bottom),
+        (left, y),
+        (right, y),
+        (left, top),
+        (left, bottom),
+        (right, top),
+        (right, bottom)
+    ]
+
+    is_ok = multiple_stones_intersect_others(touches, game_state, game_config)
+
+    return [s for (s, intersect) in zip(touches, is_ok) if not intersect]
+
 def compute_closest_snap_position(x, y, game_state, game_config, snap_color=None):
     dt_poitns = compute_double_touch_points(game_state, game_config, snap_color)
     pd_points = compute_perpendicular_touches(x, y, game_state, game_config, snap_color)
-    possible_closest_points = dt_poitns + pd_points
+    bt_points = compute_border_touch_points(game_state, game_config, snap_color)
+    pbd_points = compute_perpendicular_border_touches(x, y, game_state, game_config, snap_color)
+    possible_closest_points = dt_poitns + pd_points + bt_points + pbd_points
 
     min_d = np.inf
     xc = 0.0

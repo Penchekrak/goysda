@@ -39,11 +39,17 @@ def render_background(screen, game_state, config):
         screen.fill(colors.get('black'))
 
 def render_board(screen, game_state, config):
-    board_display = pygame.Surface((config['board_width'], config['board_height']))
-    board_display.fill(colors.get(config['background_color']))
-    
-    # отрисовка бордерной зоны
     delta_x, delta_y = (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
+    board_display = pygame.Surface((config['board_width'], config['board_height']))
+    board_display.blit(screen, (-delta_x, -delta_y))
+    # board_display = pygame.transform.scale_by(board_display, 1.1)
+    board_display = pygame.transform.box_blur(board_display, config['board_blur_radius'])
+    transparent_board = pygame.Surface((config['board_width'], config['board_height']), pygame.SRCALPHA)
+    transparent_board.fill(colors.get('white') + (200, ), special_flags=pygame.BLEND_RGBA_ADD)
+    board_display.blit(transparent_board, (0, 0))
+
+    # отрисовка бордерной зоны
+    
     for placed_stone in game_state.get_list_of_stones_to_draw():
         pygame.draw.circle(
             board_display, 

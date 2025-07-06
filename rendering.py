@@ -5,6 +5,7 @@ import math
 from utils import default_config
 
 from render_tempates.background_water import render_water_background
+from render_tempates.real_board import render_real_board
 
 def create_single_cloud(surface, config):
     random_cloud_coord = (random.randint(0, config['width']), random.randint(0, config['height']))
@@ -42,8 +43,7 @@ def render_background(screen, game_state, config):
     else:
         screen.fill(colors.get('black'))
 
-def render_board(screen, game_state, config):
-    delta_x, delta_y = (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
+def render_limpid_board(screen, game_state, config, delta_x, delta_y):
     board_display = pygame.Surface((config['board_width'], config['board_height']))
     board_display.blit(screen, (-delta_x, -delta_y))
     # board_display = pygame.transform.scale_by(board_display, 1.1)
@@ -52,8 +52,18 @@ def render_board(screen, game_state, config):
     transparent_board.fill(config['board_color'] + (200, ), special_flags=pygame.BLEND_RGBA_ADD)
     board_display.blit(transparent_board, (0, 0))
 
-    # отрисовка бордерной зоны
+    return board_display
+
+
+def render_board(screen, game_state, config):
+    delta_x, delta_y = (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
     
+    if game_state.board_to_render == 'real':
+        board_display = render_real_board(screen, game_state, config, delta_x, delta_y)
+    else:
+        board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
+
+    # отрисовка бордерной зоны
     for placed_stone in game_state.get_list_of_stones_to_draw():
         pygame.draw.circle(
             board_display, 

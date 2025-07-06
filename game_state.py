@@ -1,4 +1,4 @@
-from typing import Literal, NamedTuple, Tuple
+from typing import Literal, NamedTuple, Tuple, Dict
 from handle_input import ActionType
 from utils import default_config
 from snapper import snap_stone
@@ -54,13 +54,20 @@ class GameState:
     
     def handle_move(self, action):
         x, y = self._snap_stone(action["x"], action["y"])
-        self.suggestion_stone = Stone(x=x, y=y, color=['light_grey', 'dark_grey'][self.player_to_move])
+        self.suggestion_stone = Stone(x=x, y=y, color=['dark_grey', 'light_grey'][self.player_to_move])
 
     def handle_click(self, action):
         x, y = self._snap_stone(action["x"], action["y"])
-        new_stone = Stone(x=x, y=y, color=['white', 'black'][self.player_to_move])
+        new_stone = Stone(x=x, y=y, color=['black', 'white'][self.player_to_move])
         self.placed_stones.append(new_stone)
         self.player_to_move = (self.player_to_move + 1) % 2
     
     def get_list_of_stones_to_draw(self):
         return ([] if not self.suggestion_stone else [self.suggestion_stone]) + self.placed_stones
+    
+    def get_info(self) -> Dict[str, str]:
+        player_name = ["black", "white"][self.player_to_move]
+        return {
+            "Player": player_name,
+            f"Mode ({player_name})": ["nearest possible", "magnet"][self.placement_modes[self.player_to_move]]
+        }

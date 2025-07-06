@@ -22,21 +22,28 @@ def snap_stone(user_input, game_state, game_config, snap_color=None):
     print(x, y, snap_to_color)
 
     # TODO: if not within the board, problems. Fix this.
-    if not stone_intersects_others(x, y, game_state, game_config):
-        return x, y
+    if not snap_to_color:
+        if not stone_intersects_others(x, y, game_state, game_config):
+            return x, y
+        else:
+            return force_snap_stone(x, y, game_state, game_config, snap_color=None)
     else:
-        dt_poitns = compute_double_touch_points(game_state, game_config)
-        pd_points = compute_perpendicular_touches(x, y, game_state, game_config)
-        possible_closest_points = dt_poitns + pd_points
+        return force_snap_stone(x, y, game_state, game_config, snap_color=snap_color)
 
-        min_d = np.inf
-        xc = 0.0
-        yc = 0.0
 
-        for (x1, y1) in possible_closest_points:
-            d = norm(x1 - x, y1 - y)
-            if d < min_d:
-                xc, yc = x1, y1
-                min_d = d
-            
-        return xc, yc
+def force_snap_stone(x, y, game_state, game_config, snap_color=None):
+    dt_poitns = compute_double_touch_points(game_state, game_config)
+    pd_points = compute_perpendicular_touches(x, y, game_state, game_config)
+    possible_closest_points = dt_poitns + pd_points
+
+    min_d = np.inf
+    xc = 0.0
+    yc = 0.0
+
+    for (x1, y1) in possible_closest_points:
+        d = norm(x1 - x, y1 - y)
+        if d < min_d:
+            xc, yc = x1, y1
+            min_d = d
+        
+    return xc, yc

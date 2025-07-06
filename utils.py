@@ -59,7 +59,7 @@ def multiple_stones_intersect_others(new_stones_coords, game_state, game_config)
     """
     return [stone_intersects_others(*s, game_state, game_config) for s in new_stones_coords]
 
-def compute_double_touch_points(game_state, game_config, needed_color=None):
+def compute_double_touch_points(game_state, game_config, snap_color=None):
     """
     Returns all possible placements where the point would touch two other stones simultaneously.
     """
@@ -68,8 +68,8 @@ def compute_double_touch_points(game_state, game_config, needed_color=None):
     for s1 in game_state.placed_stones:
         for s2 in game_state.placed_stones:
 
-            if needed_color:
-                if s1.color != needed_color and s2.color != needed_color:
+            if snap_color:
+                if s1.color != snap_color and s2.color != snap_color:
                     continue
 
             x1, y1 = s1.x, s1.y
@@ -117,15 +117,15 @@ def compute_double_touch_points(game_state, game_config, needed_color=None):
     return [s for (s, intersect) in zip(doubletouch_points, is_ok) if not intersect]
     
     
-def compute_perpendicular_touches(x0, y0, game_state, game_config, needed_color=None):
+def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
     r = game_config['stone_radius']
     perpendicular_points = []
 
     for s in game_state.placed_stones:
         x1, y1 = s.x, s.y
 
-        if needed_color:
-            if s.color != needed_color:
+        if snap_color:
+            if s.color != snap_color:
                 continue
 
         # v is the s1 -> s2 vector

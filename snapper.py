@@ -28,17 +28,20 @@ def snap_stone(user_input, game_state, game_config, snap_color=None):
         else:
             return force_snap_stone(x, y, game_state, game_config, snap_color=None)
     else:
+        print(f'forcing snap with {snap_color}')
         return force_snap_stone(x, y, game_state, game_config, snap_color=snap_color)
 
 
 def force_snap_stone(x, y, game_state, game_config, snap_color=None):
-    dt_poitns = compute_double_touch_points(game_state, game_config)
-    pd_points = compute_perpendicular_touches(x, y, game_state, game_config)
+    dt_poitns = compute_double_touch_points(game_state, game_config, snap_color)
+    pd_points = compute_perpendicular_touches(x, y, game_state, game_config, snap_color)
     possible_closest_points = dt_poitns + pd_points
 
     min_d = np.inf
     xc = 0.0
     yc = 0.0
+
+    print(f'PCP: {possible_closest_points}')
 
     for (x1, y1) in possible_closest_points:
         d = norm(x1 - x, y1 - y)

@@ -302,18 +302,23 @@ def split_stones_by_groups(game_state, game_config):
 def kill_groups_of_color(color, game_state, game_config):
     groups = split_stones_by_groups(game_state, game_config)
     stones_to_kill = []
+
+    precomputed_doubletouch_points = compute_double_touch_points(game_state, game_config, None)
+
     for group in groups:
         if game_state.placed_stones[group[0]].color == color:
-            if not group_has_dame(group, game_state, game_config):
+            if not group_has_dame(group, game_state, game_config, precomputed_doubletouch_points):
                 # TODO: add KO rule etc
                 stones_to_kill += group
     kill_group(stones_to_kill, game_state, game_config)
 
-def group_has_dame(group, game_state, game_config):
+def group_has_dame(group, game_state, game_config, precomputed_doubletouch_points=None):
     r = game_config['stone_radius']
-    target_color = game_state.placed_stones[group[0]].color
-
-    dt_points = compute_double_touch_points(game_state, game_config, None)    
+    
+    if precomputed_doubletouch_points:
+        dt_points = precomputed_doubletouch_points
+    else:
+        dt_points = compute_double_touch_points(game_state, game_config, None)
     for i in group:
         s = game_state.placed_stones[i]
         x0, y0 = s.x, s.y

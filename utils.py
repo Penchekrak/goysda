@@ -202,7 +202,7 @@ def compute_group(stone_idx, game_state, game_config):
                 continue
             dx = other["x"] - sx
             dy = other["y"] - sy
-            if dx * dx + dy * dy <= threshold_sq:
+            if dx * dx + dy * dy <= threshold_sq + 10**(-5):
                 stack.append(j)
 
     return group
@@ -213,6 +213,6 @@ def group_has_dame(group, game_state, game_config):
     for s in group:
         x0, y0 = s.x, s.y
         x1, y1 = compute_closest_snap_position(x0, y0, game_state, game_config, snap_color=target_color)
-        if norm(x1 - x0, y1 - y0) <= 4 * r ** 2:
+        if norm(x1 - x0, y1 - y0) <= 4 * r ** 2 + 10**(-5):
             return True
     return False

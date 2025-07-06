@@ -7,7 +7,7 @@ from handle_input import handle_input, ActionType
 import json
 import utils
 import copy 
-import pyinstrument
+# import pyinstrument
 
 if __name__ == "__main__":
     config = {}
@@ -28,9 +28,9 @@ if __name__ == "__main__":
     # Game loop.
     while True:
         prof = None
-        if len(game_state.placed_stones) == 50:
-            prof = pyinstrument.Profiler()
-            prof.start()
+        # if len(game_state.placed_stones) == 50:
+        #     prof = pyinstrument.Profiler()
+        #     prof.start()
         user_inputs = handle_input(pygame.event.get())
         user_inputs = user_inputs['last_actions']
         print(f"{user_inputs=}")
@@ -49,10 +49,10 @@ if __name__ == "__main__":
         if ActionType.MOUSE_DOWN_LEFT in user_inputs or ActionType.MOUSE_DOWN_RIGHT in user_inputs:
             game_states_stack.append(copy.deepcopy(game_state))
         
-        if prof:
-            prof.stop()
-            prof.write_html('profile.html')
-            prof = None
+        # if prof:
+        #     prof.stop()
+        #     prof.write_html('profile.html')
+        #     prof = None
 
         # Draw.
         render(screen, game_state, config)

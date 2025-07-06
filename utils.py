@@ -119,11 +119,10 @@ def compute_double_touch_points(game_state, game_config, snap_color=None):
 
     return [s for (s, intersect) in zip(doubletouch_points, is_ok) if not intersect]
     
-    
 def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
 
     x0 += np.random.randn() / 1000
-    x1 += np.random.randn() / 1000
+    y0 += np.random.randn() / 1000
 
     r = game_config['stone_radius']
     perpendicular_points = []
@@ -155,3 +154,64 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=No
     is_ok = multiple_stones_intersect_others(perpendicular_points, game_state, game_config)
 
     return [s for (s, intersect) in zip(perpendicular_points, is_ok) if not intersect]
+
+def compute_closest_snap_position(x, y, game_state, game_config, snap_color=None):
+    dt_poitns = compute_double_touch_points(game_state, game_config, snap_color)
+    pd_points = compute_perpendicular_touches(x, y, game_state, game_config, snap_color)
+    possible_closest_points = dt_poitns + pd_points
+
+    min_d = np.inf
+    xc = 0.0
+    yc = 0.0
+
+    for (x1, y1) in possible_closest_points:
+        d = norm(x1 - x, y1 - y)
+        if d < min_d:
+            xc, yc = x1, y1
+            min_d = d
+        
+    return xc, yc
+
+def compute_group(stone_idx, game_state, game_config):
+    r = game_config['stone_radius']
+    stones = game_state.placed_stones
+
+    target_color = stones[stone_idx]["color"]
+    threshold_sq = 4 * r ** 2
+
+    visited = set()
+    stack = [stone_idx]
+    group = []
+
+    while stack:
+        idx = stack.pop()
+        if idx in visited:
+            continue
+        visited.add(idx)
+
+        stone = stones[idx]
+        if stone["color"] != target_color:
+            continue
+
+        group.append(idx)
+
+        sx, sy = stone["x"], stone["y"]
+        for j, other in enumerate(stones):
+            if j in visited or other["color"] != target_color:
+                continue
+            dx = other["x"] - sx
+            dy = other["y"] - sy
+            if dx * dx + dy * dy <= threshold_sq:
+                stack.append(j)
+
+    return group
+
+def group_has_dame(group, game_state, game_config):
+    r = game_config['stone_radius']
+    target_color = game_state.placed_stones[group[0]].color
+    for s in group:
+        x0, y0 = s.x, s.y
+        x1, y1 = compute_closest_snap_position(x0, y0, game_state, game_config, snap_color=target_color)
+        if norm(x1 - x0, y1 - y0) <= 4 * r ** 2:
+            return True
+    return False

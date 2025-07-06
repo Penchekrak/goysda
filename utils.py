@@ -43,7 +43,7 @@ def stone_intersects_others(x0, y0, game_state, game_config):
     """
     Checks if stone does not intersect other stones.
     """
-    stones = game_state.stones
+    stones = game_state.placed_stones
     r = game_config['stone_radius']
     for stone in stones:
         x1, y1 = stone.x, stone.y
@@ -65,8 +65,8 @@ def compute_double_touch_points(game_state, game_config):
     """
     r = game_config['stone_radius']
     doubletouch_points = []
-    for s1 in game_state.stones:
-        for s2 in game_state.stones:
+    for s1 in game_state.placed_stones:
+        for s2 in game_state.placed_stones:
 
             x1, y1 = s1.x, s1.y
             x2, y2 = s2.x, s2.y
@@ -116,7 +116,7 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config):
     r = game_config['stone_radius']
     perpendicular_points = []
 
-    for s in game_state.stones:
+    for s in game_state.placed_stones:
         x1, y1 = s.x, s.y
 
         # v is the s1 -> s2 vector

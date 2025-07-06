@@ -1,7 +1,7 @@
 from typing import Literal, NamedTuple, Tuple
 from handle_input import ActionType
 from utils import default_config
-
+from snapper import snap_stone
 
 def snapping_mock(stone, list_of_stones):
     return stone
@@ -29,9 +29,13 @@ class GameState:
         if not action:
             return 
 
-        x, y, is_magnet = action["x"], action["y"], False
+        x, y = action["x"], action["y"]
+        x, y = snap_stone(
+            user_input=(x, y, False), 
+            game_state=self,
+            game_config=default_config,
+        )
         new_stone = Stone(x=x, y=y, color=['white', 'black'][self.player_to_move])
-        new_stone = snapping_mock(new_stone, self.placed_stones)
         self.placed_stones.append(new_stone)
         self.player_to_move = (self.player_to_move + 1) % 2
 

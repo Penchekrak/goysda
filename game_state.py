@@ -71,7 +71,10 @@ class GameState:
     
     def get_info(self) -> Dict[str, str]:
         player_name = ["black", "white"][self.player_to_move]
+        black_territory = sum(stone.color == "black" for stone in self.placed_stones)
+        white_territory = sum(stone.color == "white" for stone in self.placed_stones)
         return {
             "Player": player_name,
-            f"Mode ({player_name})": ["nearest possible", "magnet"][self.placement_modes[self.player_to_move]]
+            f"Mode ({player_name})": ["nearest possible", "magnet"][self.placement_modes[self.player_to_move]],
+            "Black vs white:": f"{black_territory}-{white_territory} ({black_territory - white_territory})"
         }

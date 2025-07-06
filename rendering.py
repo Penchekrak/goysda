@@ -4,6 +4,8 @@ import random
 import math
 from utils import default_config
 
+from render_tempates.background_water import render_water_background
+
 def create_single_cloud(surface, config):
     random_cloud_coord = (random.randint(0, config['width']), random.randint(0, config['height']))
     for _ in range(int(math.floor(config['cloud_bulkiness'] / 2))):
@@ -35,6 +37,8 @@ def render_clouds(screen, game_state, config):
 def render_background(screen, game_state, config):
     if getattr(game_state, 'background_to_render', 'clouds') == 'clouds':
         render_clouds(screen, game_state, config)
+    elif getattr(game_state, 'background_to_render', 'clouds') == 'water':
+        render_water_background(screen, game_state, config)
     else:
         screen.fill(colors.get('black'))
 
@@ -69,14 +73,21 @@ def render_board(screen, game_state, config):
     
     screen.blit(board_display, (delta_x, delta_y))
 
-
-
 def render(screen, game_state, config):
     screen.fill(colors.get('black'))
     render_background(screen, game_state, config)
+    
+
     render_board(screen, game_state, config)
+    
     
     info = game_state.get_info()
     font = pygame.font.Font('freesansbold.ttf', 12)
-    text = font.render("\n".join(f"{key}: {value}" for key, value in info.items()), antialias=True, color="white") 
+    text = font.render("\n".join(
+        [f"{key}: {value}" for key, value in info.items()]
+        + [f"Toggle background on button: B"]
+    ), antialias=True, color="white") 
+    
+    
+    # change_background_info_text = font.render(f"Toggle background on button: B", antialias=True, color="white") 
     screen.blit(text, (100, 400))

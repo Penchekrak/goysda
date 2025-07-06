@@ -1,5 +1,6 @@
 from typing import Literal, NamedTuple, Tuple
 from handle_input import ActionType
+from utils import default_config
 
 
 def snapping_mock(stone, list_of_stones):

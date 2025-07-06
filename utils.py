@@ -108,5 +108,29 @@ def compute_double_touch_points(game_state, game_config):
     return [s for (s, ok) in zip(doubletouch_points, is_ok) if ok]
     
     
-def compute_perpendicular_touches(x, y, game_state, game_config):
+def compute_perpendicular_touches(x0, y0, game_state, game_config):
     r = game_config.stone_radius
+    perpendicular_points = []
+
+    for s in game_state.stones:
+        x1, y1 = s.x, s.y
+
+        # v is the s1 -> s2 vector
+        vx = x1 - x0
+        vy = y1 - y0
+        # v is normed to 1
+        vx /= np.sqrt(norm(vx, vy))
+        vy /= np.sqrt(norm(vx, vy))
+        
+        perpendicular_points.append((
+            x1 + vx * 2 * r,
+            y1 + vy * 2 * r
+        ))
+        perpendicular_points.append((
+            x1 - vx * 2 * r,
+            y1 - vy * 2 * r
+        ))
+
+    is_ok = multiple_stones_intersect_others(perpendicular_points, game_state, game_config)
+    
+    return [s for (s, ok) in zip(perpendicular_points, is_ok) if ok]

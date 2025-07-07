@@ -63,12 +63,9 @@ def render_board(screen, game_state, config):
     else:
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
     
-    # transparent_surface = pygame.Surface((config["board_width"], config["board_height"]), pygame.SRCALPHA)
-    transparent_surface = pygame.Surface((config["board_width"], config["board_height"]))
-    transparent_surface.set_alpha(128)
     for polygon, color in zip(*game_state.get_list_of_shapes_to_draw()):
-        pygame.draw.polygon(transparent_surface, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
-    
+        pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
+
     # отрисовка настоящих кругов
     for placed_stone in game_state.get_list_of_stones_to_draw():
         pygame.draw.circle(
@@ -79,7 +76,6 @@ def render_board(screen, game_state, config):
         )
     
     screen.blit(board_display, (delta_x, delta_y))
-    screen.blit(transparent_surface, (delta_x, delta_y))
 
 def render(screen, game_state, config):
     screen.fill(colors.get('black'))

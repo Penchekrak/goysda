@@ -2,6 +2,7 @@ from types import SimpleNamespace
 import numpy as np
 from functools import lru_cache
 import pygame
+import shapely
 
 
 colors = dict(
@@ -10,12 +11,22 @@ colors = dict(
     red=(255, 0, 0),
     green=(0, 255, 0),
     blue=(0, 0, 255),
+    white_connection=(235, 235, 235),
+    white_border=(201, 201, 201),
+    white_connection_suggestion=(215, 215, 215),
+    black_connection=(20, 20, 20),
+    black_border=(50, 50, 50),
+    black_connection_suggestion=(30, 30, 30),
+    white_suggestion=(211, 211, 211),
+    black_suggestion=(33, 33, 33),
+    white_suggestion_border=(151, 151, 151),
+    black_suggestion_border=(69, 69, 69),
+    light_grey_territory_base=(191, 191, 191),
+    dark_grey_territory_base=(39, 39, 39),
+    light_blue=(193, 226, 230),  
+    dark_blue=(85, 85, 139),       
     light_grey=(151, 151, 151),
     dark_grey=(69, 69, 69),
-    light_grey_territory=(191, 191, 191),
-    dark_grey_territory=(39, 39, 39),
-    light_blue=(193, 226, 230),   # Light Blue
-    dark_blue=(85, 85, 139),        # Dark Blue
 )
 
 default_config = {
@@ -37,8 +48,13 @@ default_config = {
     'stone_border_radius': 10,
     'cloud_image_path': 'assets/cloud.jpg',
     'board_blur_radius': 30,
-    'board_color': (254, 152, 0),
+    'board_color': (204, 102, 0),
 }
+
+def recalculate_territory_colors(config):
+    colors["light_grey_territory"] = tuple((elem1 + elem2) / 2 for elem1, elem2 in zip(colors["light_grey_territory_base"], config["board_color"]))
+    colors["dark_grey_territory"] = tuple((elem1 + elem2) / 2 for elem1, elem2 in zip(colors["dark_grey_territory_base"], config["board_color"]))
+    
 
 
 def calculate_deltax_deltay(config):
@@ -347,3 +363,34 @@ def group_has_dame(group, game_state, game_config, precomputed_doubletouch_point
 
 def kill_group(group, game_state, game_config):
     game_state.placed_stones = [s for i, s in enumerate(game_state.placed_stones) if i not in group]
+
+
+def calculate_connections_graph(game_state, game_config, tolerance=1e-5):
+    points = shapely.MultiPoint([[stone.x, stone.y] for stone in game_state.placed_and_suggestion_stones()])
+    point_to_index = {point: i for i, point in enumerate(points.geoms)}
+    delone_edges = shapely.delaunay_triangles(points, only_edges=True).geoms
+    rt = []
+    for edge in delone_edges:
+        if edge.length <= 2 * game_config["stone_radius"] + tolerance:
+            rt.append([point_to_index[elem] for elem in edge.boundary.geoms])
+    return rt
+
+
+def rotation_matrix(angle):
+    return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+
+
+def calculate_two_connection_polygons(x1, y1, x2, y2):
+    rt = []
+    p1, p2 = np.array([x1, y1]), np.array([x2, y2])
+    m = (p1 + p2) / 2
+    for sign in [-1, 1]:
+        a = p1
+        b = p1 + (m - p1) @ rotation_matrix(sign * np.pi / 3)
+        c = p1 + (2 * np.sqrt(3) / 3) * (m - p1) @ rotation_matrix(sign * np.pi / 6)
+        d = m + (m - p1) @ rotation_matrix(sign * np.pi / 3)
+        e = p2
+        rt.append(shapely.Polygon([a, b, c, d, e]))
+    return rt
+        
+        

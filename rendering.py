@@ -66,15 +66,6 @@ def render_board(screen, game_state, config):
     transparent_surface.set_alpha(128)
     for polygon, color in zip(*game_state.get_list_of_shapes_to_draw()):
         pygame.draw.polygon(transparent_surface, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
-
-    # отрисовка бордерной зоны
-    for placed_stone in game_state.get_list_of_stones_to_draw():
-        pygame.draw.circle(
-            board_display, 
-            config['stone_no_click_zone_color'],
-            (placed_stone.x - delta_x, placed_stone.y - delta_y),
-            config['stone_radius'] * 2
-        )
     
     # отрисовка настоящих кругов
     for placed_stone in game_state.get_list_of_stones_to_draw():

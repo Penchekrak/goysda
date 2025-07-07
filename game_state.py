@@ -33,7 +33,9 @@ class GameState:
         self.suggestion_stone = None
         self.placement_modes = [0, 0]  # for each player his own mode
         self.territory_mode = [False, False]  # for each player his own mode
+        self.suggestion_stone_color="black"
         self.voronoi_polygons = []
+        self.voronoi_polygons_with_suggestion = []
         self.colors = ["black", "white"]
         self.territory = [0, 0]
         
@@ -57,6 +59,7 @@ class GameState:
         mouse_action = user_input.get(ActionType.MOUSE_DOWN_LEFT, {})
         if mouse_action:
             self.handle_click(mouse_action)
+            self.handle_move(mouse_action)
         
         move_action = user_input.get(ActionType.MOUSE_MOTION, {})
         if move_action:
@@ -99,7 +102,9 @@ class GameState:
     
     def handle_move(self, action):
         x, y = self._snap_stone(action["x"], action["y"])
-        self.suggestion_stone = Stone(x=x, y=y, color=['dark_grey', 'light_grey'][self.player_to_move])
+        self.suggestion_stone_color = ['dark_grey', 'light_grey'][self.player_to_move]
+        self.suggestion_stone = Stone(x=x, y=y, color=self.suggestion_stone_color)
+        self.calculate_voronoi_polygons()
 
     def handle_click(self, action):
         x, y = self._snap_stone(action["x"], action["y"])
@@ -115,25 +120,45 @@ class GameState:
         self.calculate_voronoi_polygons()
     
     def calculate_voronoi_polygons(self):
+        if [self.suggestion_stone.x, self.suggestion_stone.y] in [[stone.x, stone.y] for stone in self.placed_stones]:
+            self.suggestion_stone = Stone(self.suggestion_stone.x + 1, self.suggestion_stone.y, color=self.suggestion_stone_color)
+        
+        stones_list = self.placed_stones + [self.suggestion_stone]
         voronoi_polygons = shapely.voronoi_polygons(
-            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.placed_stones]),
+            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in stones_list]),
             extend_to=self.board,
             ordered=True,
         ).geoms
+        
         self.voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
         for i in range(len(self.colors)):
-            area_i = sum(elem.area * (stone.color == self.colors[i]) for elem, stone in zip(self.voronoi_polygons, self.placed_stones))
+            if i == self.player_to_move:
+                player_colors = [self.colors[i], self.suggestion_stone_color] 
+            else:
+                player_colors = [self.colors[i]]
+            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.voronoi_polygons, stones_list))
             self.territory[i] = round(area_i / (2 * math.pi * self.config["stone_radius"] ** 2), 2)
-    
+
     def get_list_of_stones_to_draw(self):
         return ([] if not self.suggestion_stone else [self.suggestion_stone]) + self.placed_stones
-    
+
     def get_list_of_shapes_to_draw(self):
+        free_of_centers_zones, colors = [], []
+        for stone, voro_poly in zip(self.placed_stones + [self.suggestion_stone], self.voronoi_polygons):
+            border_indicator_stone = shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"] * 2)
+            border_indicator_stone = shapely.intersection(border_indicator_stone, voro_poly)
+            free_of_centers_zones.append(border_indicator_stone)
+            if stone.color == self.suggestion_stone_color:
+                colors.append(self.suggestion_stone_color)
+            else:
+                colors.append(["dark_grey", "light_grey"][stone.color == self.colors[1]])
+
         if not self.territory_mode[self.player_to_move]:
-            return []
-        
-        return self.voronoi_polygons, [["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]] for stone in self.placed_stones]
-            
+            return free_of_centers_zones, colors
+
+        polygon_colors = [["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]]
+                          for stone in self.placed_stones + [self.suggestion_stone]]
+        return  self.voronoi_polygons, polygon_colors
     
     def get_info(self) -> Dict[str, str]:
         player_name = self.colors[self.player_to_move]

@@ -156,8 +156,10 @@ class GameState:
         if not self.territory_mode[self.player_to_move]:
             return free_of_centers_zones, colors
 
-        polygon_colors = [["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]]
-                          for stone in self.placed_stones + [self.suggestion_stone]]
+        polygon_colors = []
+        for stone in self.placed_stones:
+            polygon_colors.append(["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]])
+        polygon_colors.append(["dark_grey_territory", "light_grey_territory"][self.player_to_move])
         return  self.voronoi_polygons, polygon_colors
     
     def get_info(self) -> Dict[str, str]:

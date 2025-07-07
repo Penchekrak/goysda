@@ -11,8 +11,8 @@ colors = dict(
     green=(0, 255, 0),
     blue=(0, 0, 255),
     light_grey=(151, 151, 151),
-    dark_grey=(119, 119, 119),
-    light_grey_territory=(221, 221, 221),
+    dark_grey=(69, 69, 69),
+    light_grey_territory=(191, 191, 191),
     dark_grey_territory=(39, 39, 39),
     light_blue=(193, 226, 230),   # Light Blue
     dark_blue=(85, 85, 139),        # Dark Blue
@@ -37,7 +37,7 @@ default_config = {
     'stone_border_radius': 10,
     'cloud_image_path': 'assets/cloud.jpg',
     'board_blur_radius': 30,
-    'board_color': (204, 102, 0),
+    'board_color': (254, 152, 0),
 }
 
 

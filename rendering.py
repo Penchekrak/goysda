@@ -48,7 +48,8 @@ def render_limpid_board(screen, game_state, config, delta_x, delta_y):
     board_display.blit(screen, (-delta_x, -delta_y))
     # board_display = pygame.transform.scale_by(board_display, 1.1)
     board_display = pygame.transform.box_blur(board_display, config['board_blur_radius'])
-    transparent_board = pygame.Surface((config['board_width'], config['board_height']), pygame.SRCALPHA)
+    # transparent_board = pygame.Surface((config['board_width'], config['board_height']), pygame.SRCALPHA)
+    transparent_board = pygame.Surface((config['board_width'], config['board_height']))
     transparent_board.fill(config['board_color'] + (200, ), special_flags=pygame.BLEND_RGBA_ADD)
     board_display.blit(transparent_board, (0, 0))
 
@@ -62,7 +63,8 @@ def render_board(screen, game_state, config):
     else:
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
     
-    transparent_surface = pygame.Surface((config["board_width"], config["board_height"]), pygame.SRCALPHA)
+    # transparent_surface = pygame.Surface((config["board_width"], config["board_height"]), pygame.SRCALPHA)
+    transparent_surface = pygame.Surface((config["board_width"], config["board_height"]))
     transparent_surface.set_alpha(128)
     for polygon, color in zip(*game_state.get_list_of_shapes_to_draw()):
         pygame.draw.polygon(transparent_surface, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])

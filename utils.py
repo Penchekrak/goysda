@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 import numpy as np
 from functools import lru_cache
+import pygame
+
 
 colors = dict(
     white=(255, 255, 255),
@@ -8,8 +10,10 @@ colors = dict(
     red=(255, 0, 0),
     green=(0, 255, 0),
     blue=(0, 0, 255),
-    light_grey=(211, 211, 211),
+    light_grey=(191, 191, 191),
     dark_grey=(119, 119, 119),
+    light_grey_territory=(221, 221, 221),
+    dark_grey_territory=(39, 39, 39),
 )
 
 default_config = {
@@ -33,6 +37,11 @@ default_config = {
     'board_blur_radius': 30,
     'board_color': (204, 102, 0),
 }
+
+
+def calculate_deltax_deltay(config):
+    return (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
+
 
 def norm(x, y):
     return x ** 2 + y ** 2

@@ -4,6 +4,8 @@ from utils import *
 from snapper import snap_stone
 from enum import Enum
 import pygame
+import shapely
+import math
 
 
 def snapping_mock(stone, list_of_stones):
@@ -29,7 +31,11 @@ class GameState:
         self.player_to_move = 0
         self.background_state = 0
         self.suggestion_stone = None
-        self.placement_modes = [0, 0] # for each player his own mode
+        self.placement_modes = [0, 0]  # for each player his own mode
+        self.territory_mode = [False, False]  # for each player his own mode
+        self.voronoi_polygons = []
+        self.colors = ["black", "white"]
+        self.territory = [0, 0]
         
         self.background_to_render = 'clouds'
         # self.background_to_render = 'water'
@@ -37,6 +43,14 @@ class GameState:
         self.board_to_render = 'limpid'
         # self.board_to_render = 'real'
 
+        self.config = config
+        delta_x, delta_y = calculate_deltax_deltay(config)
+        self.board = shapely.Polygon([
+            [delta_x, delta_y],
+            [delta_x, delta_y + config['board_height']],
+            [delta_x + config['board_width'], delta_y + config['board_height']],
+            [delta_x + config['board_width'], delta_y]
+        ])
 
 
     def update(self, user_input: Tuple[int, int, bool] = None):
@@ -64,15 +78,17 @@ class GameState:
             self.background_to_render = 'clouds' if self.background_to_render == 'water' else 'water'
         elif action["key"] == pygame.K_n:
             self.board_to_render = 'real' if self.board_to_render == 'limpid' else 'limpid'
+        elif action["key"] == pygame.K_t:
+            self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
 
 
     def _snap_stone(self, x, y):
         mode = list(PlacementsModes)[self.placement_modes[self.player_to_move]]
         is_not_nearest_possible = (mode != PlacementsModes.nearest_possible)
         if ((self.player_to_move == 0) == (mode == PlacementsModes.snap_to_my_color)):
-            snap_color = 'black'
+            snap_color = self.colors[0]
         else:
-            snap_color = 'white'
+            snap_color = self.colors[1]
 
         return snap_stone(
             user_input=(x, y, is_not_nearest_possible), 
@@ -87,25 +103,45 @@ class GameState:
 
     def handle_click(self, action):
         x, y = self._snap_stone(action["x"], action["y"])
-        new_stone = Stone(x=x, y=y, color=['black', 'white'][self.player_to_move])
+        new_stone = Stone(x=x, y=y, color=self.colors[self.player_to_move])
         self.placed_stones.append(new_stone)
-        current_player_color = ('black' if self.player_to_move % 2 == 0 else 'white')
-        opponent_color = ('white' if self.player_to_move % 2 == 0 else 'black')
+
+        current_player_color = self.colors[self.player_to_move]
+        opponent_color = self.colors[(self.player_to_move + 1) % 2]
         kill_groups_of_color(opponent_color, self, default_config)
         kill_groups_of_color(current_player_color, self, default_config)
+        
         self.player_to_move = (self.player_to_move + 1) % 2
+        self.calculate_voronoi_polygons()
+    
+    def calculate_voronoi_polygons(self):
+        voronoi_polygons = shapely.voronoi_polygons(
+            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.placed_stones]),
+            extend_to=self.board,
+            ordered=True,
+        ).geoms
+        self.voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
+        for i in range(len(self.colors)):
+            area_i = sum(elem.area * (stone.color == self.colors[i]) for elem, stone in zip(self.voronoi_polygons, self.placed_stones))
+            self.territory[i] = round(area_i / (2 * math.pi * self.config["stone_radius"] ** 2), 2)
     
     def get_list_of_stones_to_draw(self):
         return ([] if not self.suggestion_stone else [self.suggestion_stone]) + self.placed_stones
     
+    def get_list_of_shapes_to_draw(self):
+        if not self.territory_mode[self.player_to_move]:
+            return []
+        
+        return self.voronoi_polygons, [["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]] for stone in self.placed_stones]
+            
+    
     def get_info(self) -> Dict[str, str]:
-        player_name = ["black", "white"][self.player_to_move]
-        black_territory = sum(stone.color == "black" for stone in self.placed_stones)
-        white_territory = sum(stone.color == "white" for stone in self.placed_stones)
+        player_name = self.colors[self.player_to_move]
         return {
             "Player": player_name,
-            f"{player_name} mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
-            "Black vs white": f"{black_territory}-{white_territory} ({black_territory - white_territory})",
+            "Player placement mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
+            "Player territory mode (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
+            "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",
             "Toggle background on button": "B",
             "Toggle board on button": "N",
         }

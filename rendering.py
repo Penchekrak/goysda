@@ -2,7 +2,7 @@ import pygame
 from utils import colors
 import random
 import math
-from utils import default_config
+from utils import default_config, calculate_deltax_deltay
 
 from render_tempates.background_water import render_water_background
 from render_tempates.real_board import render_real_board
@@ -56,12 +56,16 @@ def render_limpid_board(screen, game_state, config, delta_x, delta_y):
 
 
 def render_board(screen, game_state, config):
-    delta_x, delta_y = (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
-    
+    delta_x, delta_y = calculate_deltax_deltay(config)
     if game_state.board_to_render == 'real':
         board_display = render_real_board(screen, game_state, config, delta_x, delta_y)
     else:
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
+    
+    transparent_surface = pygame.Surface((config["board_width"], config["board_height"]), pygame.SRCALPHA)
+    transparent_surface.set_alpha(128)
+    for polygon, color in zip(*game_state.get_list_of_shapes_to_draw()):
+        pygame.draw.polygon(transparent_surface, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
 
     # отрисовка бордерной зоны
     for placed_stone in game_state.get_list_of_stones_to_draw():
@@ -82,6 +86,7 @@ def render_board(screen, game_state, config):
         )
     
     screen.blit(board_display, (delta_x, delta_y))
+    screen.blit(transparent_surface, (delta_x, delta_y))
 
 def render(screen, game_state, config):
     screen.fill(colors.get('black'))

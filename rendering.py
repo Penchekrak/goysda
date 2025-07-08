@@ -77,6 +77,50 @@ def render_board(screen, game_state, config):
     
     screen.blit(board_display, (delta_x, delta_y))
 
+def draw_info_panel(screen, game_state, config):
+    font_key = pygame.font.Font('freesansbold.ttf', 14)
+    font_value = pygame.font.Font('freesansbold.ttf', 14)
+    
+    info = game_state.get_info()
+    
+    panel_width = 800
+    line_height = 20
+    padding = 10
+    
+    panel_height = (len(info) * line_height) + (2 * padding)
+    panel_x = (config['width'] - panel_width) / 2
+    panel_y = config['height'] - panel_height - 10
+    
+    panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+    panel_surface.fill((0, 0, 0, 150))
+    
+    key_color = (200, 200, 200) # Light grey for keys
+    value_color = (255, 255, 255) # White for values
+    
+    key_x = padding
+    value_x = panel_width * 0.6  # Start values at 60% of the panel width
+
+    pixel_eps = 4
+    
+    for i, (key, value) in enumerate(info.items()):
+        # Render Key
+        key_surface = font_key.render(f"{key}:", True, key_color)
+        panel_surface.blit(key_surface, (key_x, padding + i * line_height))
+        
+        # Render Value
+        value_surface = font_value.render(str(value), True, value_color)
+        panel_surface.blit(value_surface, (value_x, padding + i * line_height))
+        
+        # Draw separator line
+        if i < len(info) - 1:
+            line_y = (padding + pixel_eps) + (i + 1) * line_height - (line_height / 2) + 2
+            line_color = (100, 100, 100, 150) # Semi-transparent grey
+            pygame.draw.line(panel_surface, line_color, (padding, line_y), (panel_width - padding, line_y), 1)
+
+
+    screen.blit(panel_surface, (panel_x, panel_y))
+
+
 def render(screen, game_state, config):
     screen.fill(colors.get('black'))
     render_background(screen, game_state, config)
@@ -84,9 +128,5 @@ def render(screen, game_state, config):
 
     render_board(screen, game_state, config)
     
-    
-    info = game_state.get_info()
-    font = pygame.font.Font('freesansbold.ttf', 12)
-    text = font.render("\n".join([f"{key}: {value}" for key, value in info.items()]), antialias=True, color="white") 
-    screen.blit(text, (config['width'] / 2 - 100, config['height'] - 60))
+    draw_info_panel(screen, game_state, config)
     

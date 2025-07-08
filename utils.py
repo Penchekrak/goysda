@@ -30,15 +30,18 @@ colors = dict(
     dark_grey=(69, 69, 69),
 )
 
+# board_size = 720
+board_size = 600
+
 default_config = {
     'width': 860,
     'height': 860,
     'fps': 60,
-    'board_width': 720,
-    'board_height': 720,
+    'board_width': board_size,
+    'board_height': board_size,
     'cloud_scale': 0.25,
     'background_color': 'green',
-    'stone_radius': 720 / 26,
+    'stone_radius': board_size / 26,
     'stone_color': 'white',
     'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
     'cloud_count': 10,

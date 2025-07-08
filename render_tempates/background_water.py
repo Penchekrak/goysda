@@ -2,6 +2,12 @@ import pygame
 import numpy as np
 import math
 
+# Удаляем класс PreRenderedWater и связанные с ним импорты pickle и os
+
+# Глобальные переменные для хранения последнего кадра и счетчика
+last_water_surface = None
+frame_counter = 0
+
 def create_water_background(width, height, time):
     """Создаёт анимированный фон воды с эффектами как в shader репозитории"""
     # Создаём массивы координат
@@ -13,9 +19,9 @@ def create_water_background(width, height, time):
     U = X / width
     V = Y / height
     
-    # Создаём волны как в шейдере
+    # Создаём волны как в шейдере - все множители времени теперь целые числа для идеального цикла
     wave1 = np.sin(U * 10.0 + time * 2.0) * 0.01
-    wave2 = np.sin(V * 8.0 + time * 1.5) * 0.01
+    wave2 = np.sin(V * 8.0 + time * 2.0) * 0.01 # Было 1.5
     wave3 = np.sin(U * 15.0 + V * 12.0 + time * 3.0) * 0.005
     
     # Применяем искажение к координатам
@@ -29,7 +35,7 @@ def create_water_background(width, height, time):
     water_color[:, :, 2] = 0.8  # B
     
     # Добавляем вариации цвета
-    noise = np.sin(distorted_U * 50.0 + time) * np.sin(distorted_V * 50.0 + time * 0.7) * 0.1
+    noise = np.sin(distorted_U * 50.0 + time) * np.sin(distorted_V * 50.0 + time * 1.0) * 0.1 # Было 0.7
     water_color[:, :, 0] += noise * 0.1  # R
     water_color[:, :, 1] += noise * 0.05  # G
     water_color[:, :, 2] += noise * 0.2  # B
@@ -59,11 +65,27 @@ def create_water_background(width, height, time):
     
     return water_surface
 
+
+# Удаляем старую реализацию с кешем
 def render_water_background(screen, game_state, config):
-    """Рендерит анимированный фон воды на экран"""
-    time = pygame.time.get_ticks() / 1000.0
-    water_surface = create_water_background(config['width'], config['height'], time)
-    screen.blit(water_surface, (0, 0))
+    """
+    Рендерит фон воды, обновляя его только каждый 3-й кадр для производительности.
+    """
+    global last_water_surface, frame_counter
+
+    EVERY_N_PIXEL_CHANGE_RESULT = 5
+
+    # Генерируем новый фон только каждый 3-й кадр (или если он еще не создан)
+    if last_water_surface is None or frame_counter % EVERY_N_PIXEL_CHANGE_RESULT == 0:
+        time = pygame.time.get_ticks() / 1000.0
+        last_water_surface = create_water_background(config['width'], config['height'], time)
+
+    # Отрисовываем последний сгенерированный фон
+    screen.blit(last_water_surface, (0, 0))
+    
+    # Увеличиваем счетчик кадров
+    frame_counter += 1
+
 
 def create_water_background_with_params(width, height, time, 
                                       wave_speed=2.0, 

@@ -64,9 +64,10 @@ def render_cached_real_board(screen, config, delta_x, delta_y):
 
 def render_board(screen, game_state, config):
     delta_x, delta_y = calculate_deltax_deltay(config)
-    if game_state.board_to_render_list[game_state.board_to_render_index] == 'real':
+    board_to_render = game_state.board_to_render_list[game_state.board_to_render_index]
+    if board_to_render == 'real':
         board_display = render_cached_real_board(screen, config, delta_x, delta_y)
-    elif game_state.board_to_render_list[game_state.board_to_render_index] == 'limpid':
+    elif board_to_render == 'limpid':
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
     else:
         raise ValueError(f"Unknown board to render: {game_state.board_to_render_list[game_state.board_to_render_index]}")

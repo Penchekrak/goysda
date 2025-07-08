@@ -78,6 +78,8 @@ class GameState:
             self.board_to_render = 'real' if self.board_to_render == 'limpid' else 'limpid'
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
+        elif action["key"] == pygame.K_q:
+            exit()
 
     def _snap_stone(self, x, y):
         mode = list(PlacementsModes)[self.placement_modes[self.player_to_move]]
@@ -216,4 +218,5 @@ class GameState:
             "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",
             "Toggle background on button": "B",
             "Toggle board on button": "N",
+            "For quit use": "Q",
         }

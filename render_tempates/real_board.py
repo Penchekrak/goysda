@@ -2,7 +2,7 @@ import pygame
 import random
 from utils import colors
 
-def render_real_board(screen, game_state, config, delta_x, delta_y):
+def create_real_board_surface(config):
     """Рендерит правдоподобную деревянную доску Go"""
     board_width = config['board_width']
     board_height = config['board_height']
@@ -56,18 +56,5 @@ def render_real_board(screen, game_state, config, delta_x, delta_y):
                 point_y = start_y + y_pos * cell_size
                 pygame.draw.circle(board_surface, line_color, (point_x, point_y), 4)
     
-    # # Создаем тень доски
-    # shadow_surface = pygame.Surface((board_width + 15, board_height + 15), pygame.SRCALPHA)
-    # shadow_layers = [(0, 0, 60), (5, 5, 40), (10, 10, 20)]
-    
-    # for layer_offset_x, layer_offset_y, alpha in shadow_layers:
-    #     shadow_color = (0, 0, 0, alpha)
-    #     pygame.draw.rect(shadow_surface, shadow_color, 
-    #                     (layer_offset_x, layer_offset_y, board_width, board_height))
-    
-    # # Рисуем тень и доску
-    # screen.blit(shadow_surface, (delta_x + 15, delta_y + 15))
-    screen.blit(board_surface, (delta_x, delta_y))
-
     return board_surface
     

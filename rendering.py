@@ -5,7 +5,7 @@ import math
 from utils import default_config, calculate_deltax_deltay
 
 from render_tempates.background_water import render_water_background
-from render_tempates.real_board import render_real_board
+from render_tempates.real_board import create_real_board_surface
 
 def create_single_cloud(surface, config):
     random_cloud_coord = (random.randint(0, config['width']), random.randint(0, config['height']))
@@ -31,6 +31,7 @@ def create_clouds(config):
     return surface
 
 cloudy_surface = create_clouds(default_config)
+real_board_cached_surface = create_real_board_surface(default_config)
 
 def render_clouds(screen, game_state, config):
     screen.blit(cloudy_surface, (game_state.background_state - config['width'], 0))
@@ -55,16 +56,21 @@ def render_limpid_board(screen, game_state, config, delta_x, delta_y):
 
     return board_display
 
+def render_cached_real_board(screen, config, delta_x, delta_y):
+    board_display = pygame.Surface((config['board_width'], config['board_height']), pygame.SRCALPHA)
+    board_display.blit(real_board_cached_surface, (0, 0))
+    return board_display
 
 def render_board(screen, game_state, config):
     delta_x, delta_y = calculate_deltax_deltay(config)
     if game_state.board_to_render == 'real':
-        board_display = render_real_board(screen, game_state, config, delta_x, delta_y)
+        board_display = render_cached_real_board(screen, config, delta_x, delta_y)
     else:
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
     
     for polygon, color in game_state.get_list_of_shapes_to_draw():
-        pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
+        if len(polygon.exterior.coords) > 2:
+            pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
 
     # отрисовка настоящих кругов
     for placed_stone in game_state.get_list_of_stones_to_draw():

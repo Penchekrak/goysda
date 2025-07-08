@@ -25,7 +25,7 @@ world_size = 950
 default_config = {
     'width': world_size,
     'height': world_size,
-    'fps': 60,
+    'fps': 10,
     'board_width': board_size,
     'board_height': board_size,
     'cloud_scale': 0.25,
@@ -39,11 +39,11 @@ default_config = {
     'stone_border_radius': 10,
     'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
     'light_grey_territory_color': (191, 191, 191),
-    'dark_grey_territory_color': (39, 39, 39),
+    'dark_grey_territory_color': (59, 59, 59),
     'white_connection_color': (235, 235, 235),
     'white_border_color': (201, 201, 201),
     'white_connection_suggestion_color': (215, 215, 215),
-    'white_suggestion_color': (221, 221, 221),
+    'white_suggestion_color': (201, 201, 201),
     'white_suggestion_border_color': (151, 151, 151),
     'black_connection_color': (20, 20, 20),
     'black_border_color': (50, 50, 50),

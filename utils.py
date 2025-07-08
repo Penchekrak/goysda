@@ -25,7 +25,7 @@ world_size = 950
 default_config = {
     'width': world_size,
     'height': world_size,
-    'fps': 10,
+    'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
     'cloud_scale': 0.25,

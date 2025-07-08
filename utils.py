@@ -11,19 +11,6 @@ colors = dict(
     red=(255, 0, 0),
     green=(0, 255, 0),
     blue=(0, 0, 255),
-    white_connection=(235, 235, 235),
-    white_border=(201, 201, 201),
-    white_connection_suggestion=(215, 215, 215),
-    black_connection=(20, 20, 20),
-    black_border=(50, 50, 50),
-    black_connection_suggestion=(30, 30, 30),
-    white_suggestion=(211, 211, 211),
-    black_suggestion=(33, 33, 33),
-    white_suggestion_border=(151, 151, 151),
-    black_suggestion_border=(69, 69, 69),
-    light_grey_territory_base=(191, 191, 191),
-    dark_grey_territory_base=(39, 39, 39),
-    board_border=(128, 128, 128),
     light_blue=(193, 226, 230),  
     dark_blue=(85, 85, 139),       
     light_grey=(151, 151, 151),
@@ -42,25 +29,49 @@ default_config = {
     'board_width': board_size,
     'board_height': board_size,
     'cloud_scale': 0.25,
-    'background_color': 'green',
     'stone_radius': board_size / 26,
-    'stone_color': 'white',
-    'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
     'cloud_count': 10,
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
-    'stone_border_color': 'black',
+    'cloud_image_path': 'assets/cloud.jpg',
+    'stone_radius': 720 / 26,
     'stone_border_width': 2,
     'stone_border_radius': 10,
-    'cloud_image_path': 'assets/cloud.jpg',
-    'board_blur_radius': 30,
+    'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
+    'light_grey_territory_color': (191, 191, 191),
+    'dark_grey_territory_color': (39, 39, 39),
+    'white_connection_color': (235, 235, 235),
+    'white_border_color': (201, 201, 201),
+    'white_connection_suggestion_color': (215, 215, 215),
+    'white_suggestion_color': (221, 221, 221),
+    'white_suggestion_border_color': (151, 151, 151),
+    'black_connection_color': (20, 20, 20),
+    'black_border_color': (50, 50, 50),
+    'black_connection_suggestion_color': (30, 30, 30),
+    'black_suggestion_color': (40, 40, 40),
+    'black_suggestion_border_color': (69, 69, 69),
+    'board_border_color': (128, 128, 128),
     'board_color': (204, 102, 0),
+    'board_blur_radius': 30,
+    "border_alpha": 0.5,
+    "default_alpha": 0.8,
 }
 
-def recalculate_territory_colors(config):
-    colors["light_grey_territory"] = tuple((elem1 + elem2) / 2 for elem1, elem2 in zip(colors["light_grey_territory_base"], config["board_color"]))
-    colors["dark_grey_territory"] = tuple((elem1 + elem2) / 2 for elem1, elem2 in zip(colors["dark_grey_territory_base"], config["board_color"]))
-    
+def update_colors(config):
+    suffix_color = "_color"
+    suffix_alpha = "_alpha"
+    alphas_config = {key[:-len(suffix_alpha)]: value for key, value in config.items() if key.endswith(suffix_alpha)}
+    for key, value in config.items():
+        if key.endswith(suffix_color):
+            key_minus_suffix = key[:-len(suffix_color)]
+            for key_alpha, value_alpha in alphas_config.items():
+                if key_alpha in key:
+                    alpha = value_alpha
+                    break
+            else:
+                alpha = config["default_alpha"]
+            print(key, alpha)
+            colors[key_minus_suffix] = tuple(alpha * elem1 + (1 -  alpha) * elem2 for elem1, elem2 in zip(config[key], config["board_color"]))
 
 
 def calculate_deltax_deltay(config):

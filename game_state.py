@@ -151,8 +151,6 @@ class GameState:
         return ([] if not self.suggestion_stone else [self.suggestion_stone]) + self.placed_stones
 
     def get_list_of_shapes_to_draw(self):
-        recalculate_territory_colors(self.config)
-
         if not self.territory_mode[self.player_to_move]:
             return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections()
 

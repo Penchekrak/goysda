@@ -20,6 +20,7 @@ async def main():
         with open(config_path, 'r') as f:
             config = json.load(f)
     config.update(utils.default_config)
+    utils.update_colors(config=config)
 
     pygame.init()
     

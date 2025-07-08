@@ -35,11 +35,11 @@ class GameState:
         self.colors = ["black", "white"]
         self.territory = [0, 0]
         
-        self.background_to_render = 'clouds'
-        # self.background_to_render = 'water'
+        self.background_to_render_list = ['clouds', 'water'] 
+        self.background_to_render_index = 0 # background_to_render[0] is default, then change in order
         
-        self.board_to_render = 'limpid'
-        # self.board_to_render = 'real'
+        self.board_to_render_list = ['limpid', 'real']
+        self.board_to_render_index = 1
 
         self.config = config
         delta_x, delta_y = calculate_deltax_deltay(config)
@@ -73,9 +73,10 @@ class GameState:
         elif action["key"] in keyboard_digits:
             self.placement_modes[self.player_to_move] = keyboard_digits.index(action["key"])
         elif action["key"] == pygame.K_b:
-            self.background_to_render = 'clouds' if self.background_to_render == 'water' else 'water'
+            self.background_to_render_index = (self.background_to_render_index + 1) % len(self.background_to_render_list)
         elif action["key"] == pygame.K_n:
-            self.board_to_render = 'real' if self.board_to_render == 'limpid' else 'limpid'
+            # self.board_to_render = 'real' if self.board_to_render == 'limpid' else 'limpid'
+            self.board_to_render_index = (self.board_to_render_index + 1) % len(self.board_to_render_list)
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
         elif action["key"] == pygame.K_q:

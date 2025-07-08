@@ -37,9 +37,10 @@ def render_clouds(screen, game_state, config):
     screen.blit(cloudy_surface, (game_state.background_state - config['width'], 0))
 
 def render_background(screen, game_state, config):
-    if getattr(game_state, 'background_to_render', 'clouds') == 'clouds':
+    background_to_render = game_state.background_to_render_list[game_state.background_to_render_index]
+    if background_to_render == 'clouds':
         render_clouds(screen, game_state, config)
-    elif getattr(game_state, 'background_to_render', 'clouds') == 'water':
+    elif background_to_render == 'water':
         render_water_background(screen, game_state, config)
     else:
         screen.fill(colors.get('black'))
@@ -63,11 +64,13 @@ def render_cached_real_board(screen, config, delta_x, delta_y):
 
 def render_board(screen, game_state, config):
     delta_x, delta_y = calculate_deltax_deltay(config)
-    if game_state.board_to_render == 'real':
+    if game_state.board_to_render_list[game_state.board_to_render_index] == 'real':
         board_display = render_cached_real_board(screen, config, delta_x, delta_y)
-    else:
+    elif game_state.board_to_render_list[game_state.board_to_render_index] == 'limpid':
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
-    
+    else:
+        raise ValueError(f"Unknown board to render: {game_state.board_to_render_list[game_state.board_to_render_index]}")
+
     for polygon, color in game_state.get_list_of_shapes_to_draw():
         if len(polygon.exterior.coords) > 2:
             pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])

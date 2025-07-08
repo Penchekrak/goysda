@@ -215,7 +215,7 @@ class GameState:
             "Player placement mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
             "Player territory mode (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
             "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",
-            "Toggle background on button": "B",
-            "Toggle board on button": "N",
+            f"Toggle background on button ({self.background_to_render_list[self.background_to_render_index]})": "B",
+            f"Toggle board on button ({self.board_to_render_list[self.board_to_render_index]})": "N",
             "For quit use": "Q",
         }

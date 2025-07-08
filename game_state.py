@@ -8,10 +8,6 @@ import shapely
 import math
 
 
-def snapping_mock(stone, list_of_stones):
-    return stone
-
-
 class Stone(NamedTuple):
     x: int
     y: int
@@ -54,8 +50,7 @@ class GameState:
             [delta_x + config['board_width'], delta_y]
         ])
 
-
-    def update(self, user_input: Tuple[int, int, bool] = None):
+    def update(self, user_input):
         mouse_action = user_input.get(ActionType.MOUSE_DOWN_LEFT, {})
         if mouse_action:
             self.handle_click(mouse_action)
@@ -83,7 +78,6 @@ class GameState:
             self.board_to_render = 'real' if self.board_to_render == 'limpid' else 'limpid'
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
-
 
     def _snap_stone(self, x, y):
         mode = list(PlacementsModes)[self.placement_modes[self.player_to_move]]
@@ -121,7 +115,15 @@ class GameState:
         
         self.player_to_move = (self.player_to_move + 1) % 2
         self.calculate_voronoi_polygons()
+
+    def to_json(self):
+        return {"stones": [stone._asdict for stone in self.placed_stones]}
     
+    def update_from_json(self, json):
+        new_gamestate = self.__class__(self.config)
+        new_gamestate.placed_stones = [Stone(**stone_dict) for stone_dict in json["stones"]]
+        return new_gamestate
+
     def calculate_voronoi_polygons(self):
         if [self.suggestion_stone.x, self.suggestion_stone.y] in [[stone.x, stone.y] for stone in self.placed_stones]:
             self.suggestion_stone = Stone(self.suggestion_stone.x + 1, self.suggestion_stone.y, color=self.suggestion_stone_color)
@@ -147,7 +149,18 @@ class GameState:
 
     def get_list_of_shapes_to_draw(self):
         recalculate_territory_colors(self.config)
-        connections, connection_colors = [], []
+
+        if not self.territory_mode[self.player_to_move]:
+            return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections()
+
+        polygon_colors = []
+        for stone in self.placed_stones:
+            polygon_colors.append(["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]])
+        polygon_colors.append(["dark_grey_territory", "light_grey_territory"][self.player_to_move])
+        return list(zip(self.voronoi_polygons, polygon_colors))
+    
+    def _get_list_of_connections(self):
+        connections = []
         edges_in_index_format = calculate_connections_graph(self, self.config)
         placed_and_suggestion_stones = self.placed_and_suggestion_stones()
         for edge in edges_in_index_format:
@@ -157,36 +170,42 @@ class GameState:
                     continue
                 else:
                     for elem in calculate_two_connection_polygons(stone1.x, stone1.y, stone2.x, stone2.y):
-                        connections.append(elem)
-                        connection_colors.append(stone1.color + "_connection")
+                        connections.append((elem, stone1.color + "_connection"))
             else:
                 if stone1.color in self.colors:
                     stone1, stone2 = stone2, stone1
                 if stone2.color != self.colors[self.player_to_move]:
                     continue
                 for elem in calculate_two_connection_polygons(stone1.x, stone1.y, stone2.x, stone2.y):
-                    connections.append(elem)
-                    connection_colors.append(stone2.color + "_connection_suggestion")
-        
-        free_of_centers_zones = []
-        colors = []
-        for stone, voro_poly in zip(placed_and_suggestion_stones, self.voronoi_polygons):
+                    connections.append((elem, stone2.color + "_connection_suggestion"))
+        return connections
+
+    def _get_list_of_border_stones(self):
+        rt = []
+        for stone, voro_poly in zip(self.placed_and_suggestion_stones(), self.voronoi_polygons):
             border_indicator_stone = shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"] * 2)
             border_indicator_stone = shapely.intersection(border_indicator_stone, voro_poly)
-            free_of_centers_zones.append(border_indicator_stone)
             if stone.color == self.suggestion_stone_color:
-                colors.append(self.suggestion_stone_color + "_border")
+                rt.append((border_indicator_stone, self.suggestion_stone_color + "_border"))
             else:
-                colors.append(stone.color + "_border")
+                rt.append((border_indicator_stone, stone.color + "_border"))
+        
+        return rt
 
-        if not self.territory_mode[self.player_to_move]:
-            return free_of_centers_zones + connections, colors + connection_colors
+    def _get_list_of_territory_polygons(self):
+        pass 
 
-        polygon_colors = []
-        for stone in self.placed_stones:
-            polygon_colors.append(["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]])
-        polygon_colors.append(["dark_grey_territory", "light_grey_territory"][self.player_to_move])
-        return  self.voronoi_polygons, polygon_colors
+    def _get_list_of_border_zones(self):
+        delta_x, delta_y = calculate_deltax_deltay(self.config)
+        config = self.config
+        w, h, r = config["board_width"], config["board_height"], config["stone_radius"]
+        rectangles = [
+            [[0, 0], [0, r], [w, r], [w, 0]],
+            [[0, h], [0, h - r], [w, h - r], [w, h]],
+            [[w - r, 0], [w, 0], [w, h], [w - r, h]],
+            [[0, 0], [r, 0], [r, h], [0, h]],
+        ]
+        return [(shapely.Polygon([[x + delta_x, y + delta_y] for (x, y) in elem]), "board_border") for elem in rectangles]
     
     def get_info(self) -> Dict[str, str]:
         player_name = self.colors[self.player_to_move]

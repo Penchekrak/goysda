@@ -8,10 +8,12 @@ import json
 import utils
 import copy 
 import os
+import asyncio
+
 if os.environ.get('PROFILING', '0') == '1':
     import pyinstrument
 
-if __name__ == "__main__":
+async def main():
     config = {}
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
@@ -37,14 +39,12 @@ if __name__ == "__main__":
                 prof.start()
         user_inputs = handle_input(pygame.event.get())
         user_inputs = user_inputs['last_actions']
-        print(f"{user_inputs=}")
 
         if ActionType.QUIT in user_inputs:
             pygame.quit()
             sys.exit()
 
         if ActionType.UNDO in user_inputs:
-            print(f"UNDO")
             game_state = copy.deepcopy(game_states_stack[-2])
             game_states_stack.pop()
         
@@ -63,3 +63,7 @@ if __name__ == "__main__":
         render(screen, game_state, config)
         pygame.display.flip()
         fpsClock.tick(config['fps'])
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

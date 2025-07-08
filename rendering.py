@@ -63,7 +63,7 @@ def render_board(screen, game_state, config):
     else:
         board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
     
-    for polygon, color in zip(*game_state.get_list_of_shapes_to_draw()):
+    for polygon, color in game_state.get_list_of_shapes_to_draw():
         pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
 
     # отрисовка настоящих кругов

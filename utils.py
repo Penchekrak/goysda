@@ -23,6 +23,7 @@ colors = dict(
     black_suggestion_border=(69, 69, 69),
     light_grey_territory_base=(191, 191, 191),
     dark_grey_territory_base=(39, 39, 39),
+    board_border=(128, 128, 128),
     light_blue=(193, 226, 230),  
     dark_blue=(85, 85, 139),       
     light_grey=(151, 151, 151),

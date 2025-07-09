@@ -76,15 +76,6 @@ def render_board(screen, game_state, config):
         if len(polygon.exterior.coords) > 2:
             pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
 
-    # отрисовка настоящих кругов
-    for placed_stone in game_state.get_list_of_stones_to_draw():
-        pygame.draw.circle(
-            board_display,
-            colors.get(placed_stone.color),
-            (placed_stone.x - delta_x, placed_stone.y - delta_y),
-            config['stone_radius']
-        )
-    
     screen.blit(board_display, (delta_x, delta_y))
 
 def draw_info_panel(screen, game_state, config):

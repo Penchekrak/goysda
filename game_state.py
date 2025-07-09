@@ -8,10 +8,29 @@ import shapely
 import math
 
 
-class Stone(NamedTuple):
+class Stone:
     x: int
     y: int
     color: Literal['white', 'black', 'light_grey', 'dark_grey']
+    secondary_color: Literal['white', 'black', 'light_grey', 'dark_grey']
+
+    def __init__(self, x, y, color, secondary_color=None):
+        secondary_color = secondary_color or color
+        self.x = x
+        self.y = y
+        self.color = color
+        self.secondary_color = secondary_color
+    
+    def is_marked(self):
+        return self.secondary_color != self.color
+    
+    def _as_dict(self):
+        return {"x": self.x, "y": self.y, "color": self.color, "secondary_color": self.secondary_color}
+    
+    def __str__(self):
+        return f"{self.__class__.__name__}(" + ", ".join(f"{key} = {value}" for key, value in self._as_dict().items()) + ")"
+    
+    __repr__ = __str__
 
 
 class PlacementsModes(Enum):
@@ -29,9 +48,9 @@ class GameState:
         self.suggestion_stone = Stone(x=10**10, y=10**10, color="black_suggestion")
         self.placement_modes = [0, 0]  # for each player his own mode
         self.territory_mode = [False, False]  # for each player his own mode
+        self.marking_dead_mode = [False, False]
         self.suggestion_stone_color="black"
         self.voronoi_polygons = []
-        self.voronoi_polygons_with_suggestion = []
         self.colors = ["black", "white"]
         self.territory = [0, 0]
         self.moves_counter = 0
@@ -97,6 +116,8 @@ class GameState:
             self.board_to_render_index = (self.board_to_render_index + 1) % len(self.board_to_render_list)
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
+        elif action["key"] == pygame.K_d:
+            self.marking_dead_mode[self.player_to_move] = not self.marking_dead_mode[self.player_to_move]
         elif action["key"] == pygame.K_p:
             self.player_plays_pass()
         elif action["key"] == pygame.K_q:
@@ -125,11 +146,27 @@ class GameState:
         self.calculate_voronoi_polygons()
     
     def placed_and_suggestion_stones(self):
-        return self.placed_stones + ([] if self.is_the_game_over() else [self.suggestion_stone]) 
+        return self.placed_stones + ([] if self.is_the_game_over() or self.marking_dead_mode[self.player_to_move] else [self.suggestion_stone]) 
 
     def handle_click(self, action):
         if self.is_the_game_over():
             return 
+        
+        if self.marking_dead_mode[self.player_to_move]:
+            x, y = action["x"], action["y"]
+            for stone_idx, stone in enumerate(self.placed_stones):
+                if norm(stone.x - x, stone.y - y) <= self.config["stone_radius"] ** 2:
+                    if stone.color == self.colors[self.player_to_move]:
+                        selected_stone_idx = stone_idx
+                        break
+            else:
+                return
+            
+            group_idx = compute_group(selected_stone_idx, self, self.config)
+            for stone_idx in group_idx:
+                self.placed_stones[stone_idx].secondary_color = get_opposite_color(self.placed_stones[stone_idx].secondary_color, self.colors)
+
+            return
 
         self.passes_counter = 0
         self.moves_counter += 1
@@ -143,13 +180,27 @@ class GameState:
         kill_groups_of_color(current_player_color, self, default_config)
         
         self.pass_the_turn()
+        self.update_secondary_colors()
         self.calculate_voronoi_polygons()
+    
+    def update_secondary_colors(self):
+        stone_groups = split_stones_by_groups(self, self.config)
+        for stone_group in stone_groups:
+            color_to_mark_group = None
+            for stone_idx in stone_group:
+                if self.placed_stones[stone_idx].is_marked():
+                    color_to_mark_group = self.placed_stones[stone_idx].secondary_color
+                    break
+            if color_to_mark_group is not None:
+                for stone_idx in stone_group:
+                    self.placed_stones[stone_idx].secondary_color = color_to_mark_group
 
     def to_json(self):
         return {
             "stones": [stone._asdict() for stone in self.placed_stones],
             "moves_counter": self.moves_counter,
             "passes_counter": self.passes_counter,
+            "is_marked_dead": self.is_marked_dead,
         }
     
     def new_from_json(self, json):
@@ -158,41 +209,57 @@ class GameState:
         new_gamestate.moves_counter = json["moves_counter"]
         new_gamestate.player_to_move = new_gamestate.moves_counter % 2
         new_gamestate.passes_counter = json["passes_counter"]
+        new_gamestate.is_marked_dead = json.get("is_marked_dead", False)
         return new_gamestate
 
     def calculate_voronoi_polygons(self):
         if [self.suggestion_stone.x, self.suggestion_stone.y] in [[stone.x, stone.y] for stone in self.placed_stones]:
             self.suggestion_stone = Stone(self.suggestion_stone.x + 1, self.suggestion_stone.y, color=self.suggestion_stone_color)
-        
-        stones_list = self.placed_and_suggestion_stones()
+
         voronoi_polygons = shapely.voronoi_polygons(
-            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in stones_list]),
+            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.placed_and_suggestion_stones()]), #  
             extend_to=self.board,
             ordered=True,
         ).geoms
-        
         self.voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
+        
         for i in range(len(self.colors)):
             if i == self.player_to_move:
                 player_colors = [self.colors[i], self.suggestion_stone_color] 
             else:
                 player_colors = [self.colors[i]]
-            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.voronoi_polygons, stones_list))
+            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.voronoi_polygons, self.placed_and_suggestion_stones()))
             self.territory[i] = round(area_i / (4 * self.config["stone_radius"] ** 2), 2)
-
-    def get_list_of_stones_to_draw(self):
-        return ([] if self.is_the_game_over() else [self.suggestion_stone]) + self.placed_stones
 
     def get_list_of_shapes_to_draw(self):
         self.update(user_input=None)
-        if not self.territory_mode[self.player_to_move]:
-            return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections()
+        if self.territory_mode[self.player_to_move]:
+            return self._get_list_of_territory_polygons() + self._get_list_of_stones_to_draw()
+        
+        return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
+
+    def _get_list_of_territory_polygons(self):
+        not_marked_as_dead_stones = [stone for stone in self.placed_and_suggestion_stones() if not stone.is_marked()]
+        voronoi_polygons = shapely.voronoi_polygons(
+            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in not_marked_as_dead_stones]), #  
+            extend_to=self.board,
+            ordered=True,
+        ).geoms
+        voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
 
         polygon_colors = []
-        for stone in self.placed_stones:
-            polygon_colors.append(["dark_grey_territory", "light_grey_territory"][stone.color == self.colors[1]])
-        polygon_colors.append(["dark_grey_territory", "light_grey_territory"][self.player_to_move])
-        return list(zip(self.voronoi_polygons, polygon_colors))
+        for stone in not_marked_as_dead_stones:
+            polygon_colors.append(stone.color + "_territory")
+
+        rt = list(zip(voronoi_polygons, polygon_colors)) 
+        return rt
+
+    def _get_list_of_stones_to_draw(self):
+        rt = []
+        for stone in self.placed_and_suggestion_stones():
+            rt.append((shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"]), stone.color))
+            rt.append((shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"] / 5), stone.secondary_color))
+        return rt            
     
     def _get_list_of_connections(self):
         connections = []
@@ -226,9 +293,6 @@ class GameState:
                 rt.append((border_indicator_stone, stone.color + "_border"))
         
         return rt
-
-    def _get_list_of_territory_polygons(self):
-        pass 
 
     def _get_list_of_border_zones(self):
         delta_x, delta_y = calculate_deltax_deltay(self.config)

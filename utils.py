@@ -37,8 +37,10 @@ default_config = {
     'stone_border_width': 2,
     'stone_border_radius': 10,
     'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
-    'light_grey_territory_color': (191, 191, 191),
-    'dark_grey_territory_color': (59, 59, 59),
+    'white_territory_color': (191, 191, 191),
+    'white_suggestion_territory_color': (181, 181, 181),
+    'black_territory_color': (59, 59, 59),
+    'black_suggestion_territory_color': (69, 69, 69),
     'white_connection_color': (235, 235, 235),
     'white_border_color': (201, 201, 201),
     'white_connection_suggestion_color': (215, 215, 215),
@@ -409,3 +411,10 @@ def calculate_two_connection_polygons(x1, y1, x2, y2):
     return rt
         
         
+def get_opposite_color(color, list_of_two_colors):
+    if list_of_two_colors[0] in color:
+        return color.replace(list_of_two_colors[0], list_of_two_colors[1])
+    if list_of_two_colors[1] in color:
+        return color.replace(list_of_two_colors[1], list_of_two_colors[0])
+    
+    raise ValueError(f"Bad color to find opposite color to: {color}")

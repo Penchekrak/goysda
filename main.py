@@ -78,8 +78,9 @@ def main():
                 filedialog.open_file_dialog("save")
                     
         if ActionType.UNDO in user_inputs:
-            game_state = copy.deepcopy(game_states_stack[-2])
-            game_states_stack.pop()
+            if len(game_states_stack) >= 2:
+                game_state = copy.deepcopy(game_states_stack[-2])
+                game_states_stack.pop()
         
         # Update.
         if not filedialog.is_active():

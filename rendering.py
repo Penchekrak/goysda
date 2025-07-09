@@ -79,8 +79,8 @@ def render_board(screen, game_state, config):
     screen.blit(board_display, (delta_x, delta_y))
 
 def draw_info_panel(screen, game_state, config):
-    font_key = pygame.font.Font('freesansbold.ttf', 14)
-    font_value = pygame.font.Font('freesansbold.ttf', 14)
+    font_key = pygame.font.SysFont('Courier New', 14)
+    font_value = pygame.font.SysFont('Courier New', 14)
     
     info = game_state.get_info()
     

@@ -135,6 +135,8 @@ class GameState:
         else:
             snap_color = self.colors[1]
 
+        if any(norm(x - stone.x, y - stone.y) ** 2 < (self.config["stone_radius"] / 5)**2 for stone in self.placed_stones):
+            x += self.config["stone_radius"] / 3
         return snap_stone(
             user_input=(x, y, is_not_nearest_possible), 
             game_state=self,

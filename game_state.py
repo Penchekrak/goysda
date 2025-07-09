@@ -48,8 +48,13 @@ class GameState:
             [delta_x + config['board_width'], delta_y + config['board_height']],
             [delta_x + config['board_width'], delta_y]
         ])
+        self.previous_move_action = {"x": 0, "y": 0}
+        self.update(user_input=None)
 
     def update(self, user_input):
+        if user_input is None:
+            self.handle_move()
+            return
         mouse_action = user_input.get(ActionType.MOUSE_DOWN_LEFT, {})
         if mouse_action:
             self.handle_click(mouse_action)
@@ -62,8 +67,12 @@ class GameState:
         keyboard_action = user_input.get(ActionType.KEY_DOWN, {})
         if keyboard_action:
             self.handle_keydown(keyboard_action)
+            self.handle_move()
 
         self.background_state = (self.background_state + 1) % default_config['width']
+    
+    def pass_the_turn(self):
+        self.player_to_move = (self.player_to_move + 1) % 2
     
     def handle_keydown(self, action):
         keyboard_digits = [pygame.K_1, pygame.K_2, pygame.K_3]
@@ -78,6 +87,8 @@ class GameState:
             self.board_to_render_index = (self.board_to_render_index + 1) % len(self.board_to_render_list)
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
+        elif action["key"] == pygame.K_p:
+            self.pass_the_turn()
         elif action["key"] == pygame.K_q:
             exit()
 
@@ -96,8 +107,9 @@ class GameState:
             snap_color=snap_color if is_not_nearest_possible else None,
         )
     
-    def handle_move(self, action):
-        x, y = self._snap_stone(action["x"], action["y"])
+    def handle_move(self, action=None):
+        self.previous_move_action = action or self.previous_move_action
+        x, y = self._snap_stone(self.previous_move_action["x"], self.previous_move_action["y"])
         self.suggestion_stone_color = self.colors[self.player_to_move] + "_suggestion"
         self.suggestion_stone = Stone(x=x, y=y, color=self.suggestion_stone_color)
         self.calculate_voronoi_polygons()
@@ -115,7 +127,7 @@ class GameState:
         kill_groups_of_color(opponent_color, self, default_config)
         kill_groups_of_color(current_player_color, self, default_config)
         
-        self.player_to_move = (self.player_to_move + 1) % 2
+        self.pass_the_turn()
         self.calculate_voronoi_polygons()
 
     def to_json(self):
@@ -144,12 +156,13 @@ class GameState:
             else:
                 player_colors = [self.colors[i]]
             area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.voronoi_polygons, stones_list))
-            self.territory[i] = round(area_i / (2 * math.pi * self.config["stone_radius"] ** 2), 2)
+            self.territory[i] = round(area_i / (4 * self.config["stone_radius"] ** 2), 2)
 
     def get_list_of_stones_to_draw(self):
         return ([] if not self.suggestion_stone else [self.suggestion_stone]) + self.placed_stones
 
     def get_list_of_shapes_to_draw(self):
+        self.update(user_input=None)
         if not self.territory_mode[self.player_to_move]:
             return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections()
 

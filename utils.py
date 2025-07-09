@@ -34,7 +34,6 @@ default_config = {
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
     'cloud_image_path': 'assets/cloud.jpg',
-    'stone_radius': 720 / 26,
     'stone_border_width': 2,
     'stone_border_radius': 10,
     'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый

@@ -54,6 +54,7 @@ def main():
                 with open(picked_path_of_none, "r") as f:
                     game_states_stack = [game_state.new_from_json(elem) for elem in json.load(f)]
                     game_state = copy.deepcopy(game_states_stack[-1])
+            
             elif dialog_type_or_none == "save":
                 with open(picked_path_of_none, "w") as f:
                     json.dump([elem.to_json() for elem in game_states_stack], f)
@@ -81,6 +82,9 @@ def main():
             if len(game_states_stack) >= 2:
                 game_state = copy.deepcopy(game_states_stack[-2])
                 game_states_stack.pop()
+                print(game_states_stack)
+            else:
+                print("Trying to undo empty position")
         
         # Update.
         if not filedialog.is_active():

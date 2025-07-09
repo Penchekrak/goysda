@@ -49,6 +49,8 @@ class GameState:
         self.placement_modes = [0, 0]  # for each player his own mode
         self.territory_mode = [False, False]  # for each player his own mode
         self.marking_dead_mode = [False, False]
+        self.suggestion_stone_mode = [True, True]
+    
         self.suggestion_stone_color="black"
         self.voronoi_polygons = []
         self.colors = ["black", "white"]
@@ -120,6 +122,8 @@ class GameState:
             self.marking_dead_mode[self.player_to_move] = not self.marking_dead_mode[self.player_to_move]
         elif action["key"] == pygame.K_p:
             self.player_plays_pass()
+        elif action["key"] == pygame.K_g:
+            self.suggestion_stone_mode[self.player_to_move] = not self.suggestion_stone_mode[self.player_to_move]
         elif action["key"] == pygame.K_q:
             exit()
 
@@ -146,7 +150,7 @@ class GameState:
         self.calculate_voronoi_polygons()
     
     def placed_and_suggestion_stones(self):
-        return self.placed_stones + ([] if self.is_the_game_over() or self.marking_dead_mode[self.player_to_move] else [self.suggestion_stone]) 
+        return self.placed_stones + ([] if self.is_the_game_over() or self.marking_dead_mode[self.player_to_move] or not self.suggestion_stone_mode[self.player_to_move] else [self.suggestion_stone]) 
 
     def handle_click(self, action):
         if self.is_the_game_over():

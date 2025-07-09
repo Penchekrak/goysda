@@ -15,7 +15,8 @@ import asyncio
 if os.environ.get('PROFILING', '0') == '1':
     import pyinstrument
 
-def main():    
+def main():
+    moves_counter = 0
     config = {}
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
@@ -49,7 +50,6 @@ def main():
         pygame_events = pygame.event.get()
         for pygame_event in pygame_events:
             dialog_type_or_none, picked_path_of_none = filedialog.handle_event(pygame_event)
-            #print(dialog_type_or_none, picked_path_of_none)
             if dialog_type_or_none == "open":
                 with open(picked_path_of_none, "r") as f:
                     game_states_stack = [game_state.new_from_json(elem) for elem in json.load(f)]
@@ -82,7 +82,7 @@ def main():
             if len(game_states_stack) >= 2:
                 game_state = copy.deepcopy(game_states_stack[-2])
                 game_states_stack.pop()
-                print(game_states_stack)
+                moves_counter = game_state.moves_counter
             else:
                 print("Trying to undo empty position")
         
@@ -90,8 +90,9 @@ def main():
         if not filedialog.is_active():
             game_state.update(user_inputs)
         
-        if ActionType.MOUSE_DOWN_LEFT in user_inputs or ActionType.MOUSE_DOWN_RIGHT in user_inputs:
+        if moves_counter != game_state.moves_counter:
             game_states_stack.append(copy.deepcopy(game_state))
+            moves_counter = game_state.moves_counter
         
         if os.environ.get('PROFILING', '0') == '1':
             if prof:

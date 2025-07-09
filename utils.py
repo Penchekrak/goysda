@@ -69,7 +69,6 @@ def update_colors(config):
                     break
             else:
                 alpha = config["default_alpha"]
-            print(key, alpha)
             colors[key_minus_suffix] = tuple(alpha * elem1 + (1 -  alpha) * elem2 for elem1, elem2 in zip(config[key], config["board_color"]))
 
 

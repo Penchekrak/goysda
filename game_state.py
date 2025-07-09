@@ -24,6 +24,7 @@ class GameState:
     def __init__(self, config):
         self.placed_stones = []
         self.player_to_move = 0
+        self.passes_counter = 0
         self.background_state = 0
         self.suggestion_stone = Stone(x=10**10, y=10**10, color="black_suggestion")
         self.placement_modes = [0, 0]  # for each player his own mode
@@ -33,7 +34,8 @@ class GameState:
         self.voronoi_polygons_with_suggestion = []
         self.colors = ["black", "white"]
         self.territory = [0, 0]
-        
+        self.moves_counter = 0
+
         self.background_to_render_list = ['clouds', 'water'] 
         self.background_to_render_index = 0 # background_to_render[0] is default, then change in order
         
@@ -50,7 +52,10 @@ class GameState:
         ])
         self.previous_move_action = {"x": 0, "y": 0}
         self.update(user_input=None)
-
+    
+    def is_the_game_over(self):
+        return self.passes_counter >= 2
+    
     def update(self, user_input):
         if user_input is None:
             self.handle_move()
@@ -71,9 +76,14 @@ class GameState:
 
         self.background_state = (self.background_state + 1) % default_config['width']
     
+    def player_plays_pass(self):
+        self.passes_counter += 1
+        self.moves_counter += 1
+        self.pass_the_turn()
+    
     def pass_the_turn(self):
         self.player_to_move = (self.player_to_move + 1) % 2
-    
+        
     def handle_keydown(self, action):
         keyboard_digits = [pygame.K_1, pygame.K_2, pygame.K_3]
         if action["key"] == pygame.K_w:
@@ -88,7 +98,7 @@ class GameState:
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
         elif action["key"] == pygame.K_p:
-            self.pass_the_turn()
+            self.player_plays_pass()
         elif action["key"] == pygame.K_q:
             exit()
 
@@ -115,9 +125,14 @@ class GameState:
         self.calculate_voronoi_polygons()
     
     def placed_and_suggestion_stones(self):
-        return self.placed_stones + [self.suggestion_stone]
+        return self.placed_stones + ([] if self.is_the_game_over() else [self.suggestion_stone]) 
 
     def handle_click(self, action):
+        if self.is_the_game_over():
+            return 
+
+        self.passes_counter = 0
+        self.moves_counter += 1
         x, y = self._snap_stone(action["x"], action["y"])
         new_stone = Stone(x=x, y=y, color=self.colors[self.player_to_move])
         self.placed_stones.append(new_stone)
@@ -131,11 +146,18 @@ class GameState:
         self.calculate_voronoi_polygons()
 
     def to_json(self):
-        return {"stones": [stone._asdict() for stone in self.placed_stones]}
+        return {
+            "stones": [stone._asdict() for stone in self.placed_stones],
+            "moves_counter": self.moves_counter,
+            "passes_counter": self.passes_counter,
+        }
     
     def new_from_json(self, json):
         new_gamestate = self.__class__(self.config)
         new_gamestate.placed_stones = [Stone(**stone_dict) for stone_dict in json["stones"]]
+        new_gamestate.moves_counter = json["moves_counter"]
+        new_gamestate.player_to_move = new_gamestate.moves_counter % 2
+        new_gamestate.passes_counter = json["passes_counter"]
         return new_gamestate
 
     def calculate_voronoi_polygons(self):
@@ -159,7 +181,7 @@ class GameState:
             self.territory[i] = round(area_i / (4 * self.config["stone_radius"] ** 2), 2)
 
     def get_list_of_stones_to_draw(self):
-        return ([] if not self.suggestion_stone else [self.suggestion_stone]) + self.placed_stones
+        return ([] if self.is_the_game_over() else [self.suggestion_stone]) + self.placed_stones
 
     def get_list_of_shapes_to_draw(self):
         self.update(user_input=None)
@@ -222,8 +244,18 @@ class GameState:
     
     def get_info(self) -> Dict[str, str]:
         player_name = self.colors[self.player_to_move]
-        return {
-            "Player": player_name,
+        if self.is_the_game_over():
+            if self.territory[0] >= self.territory[1] + 1:
+                turn_info = {"Winner": self.colors[0]}
+            elif self.territory[1] >= self.territory[0] + 1:
+                turn_info = {"Winner": self.colors[1]}
+            else:
+                turn_info = {"Result": "tie"}
+            print(f"Here {turn_info}")
+        else:
+            turn_info = {"Player": player_name}
+        
+        return turn_info | {
             "Player placement mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
             "Player territory mode (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
             "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",

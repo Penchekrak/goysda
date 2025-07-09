@@ -14,7 +14,6 @@ class Stone(NamedTuple):
     color: Literal['white', 'black', 'light_grey', 'dark_grey']
 
 
-
 class PlacementsModes(Enum):
     nearest_possible = "Nearest possible"
     snap_to_my_color = "Snap to my color"
@@ -26,7 +25,7 @@ class GameState:
         self.placed_stones = []
         self.player_to_move = 0
         self.background_state = 0
-        self.suggestion_stone = None
+        self.suggestion_stone = Stone(x=10**10, y=10**10, color="black_suggestion")
         self.placement_modes = [0, 0]  # for each player his own mode
         self.territory_mode = [False, False]  # for each player his own mode
         self.suggestion_stone_color="black"
@@ -120,9 +119,9 @@ class GameState:
         self.calculate_voronoi_polygons()
 
     def to_json(self):
-        return {"stones": [stone._asdict for stone in self.placed_stones]}
+        return {"stones": [stone._asdict() for stone in self.placed_stones]}
     
-    def update_from_json(self, json):
+    def new_from_json(self, json):
         new_gamestate = self.__class__(self.config)
         new_gamestate.placed_stones = [Stone(**stone_dict) for stone_dict in json["stones"]]
         return new_gamestate

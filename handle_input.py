@@ -1,17 +1,19 @@
-from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, KEYDOWN, K_z, KMOD_LCTRL, KMOD_RCTRL
+from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, KEYDOWN, K_z, KMOD_LCTRL, KMOD_RCTRL, USEREVENT
 from pygame.key import get_mods
 from enum import Enum
+import pygame_gui
 
 class ActionType(Enum):
     """Типы действий в игре"""
     QUIT = 'quit'
+    KEY_DOWN = 'key_down'
     MOUSE_DOWN_LEFT = 'mouse_down_left'
     MOUSE_DOWN_RIGHT = 'mouse_down_right'
     MOUSE_UP_LEFT = 'mouse_up_left'
     MOUSE_UP_RIGHT = 'mouse_up_right'
     MOUSE_MOTION = 'mouse_motion'
-    KEY_DOWN = 'key_down'
     UNDO = 'undo'
+    FILEDIALOG_CONFIRMED = 'filedialog_confirmed'
 
 
 def handle_input(events):
@@ -114,6 +116,15 @@ def handle_input(events):
                 }
                 actions.append(action)
                 last_actions[ActionType.KEY_DOWN] = action
+        elif event.type == USEREVENT and event.user_type == pygame_gui.UI_FILE_DIALOG_PATH_PICKED:
+            action = {
+                'action': 'user_event',
+                'ui_element': event.ui_element,
+                'text': event.text,
+            }
+            actions.append(action)
+            last_actions[ActionType.FILEDIALOG_CONFIRMED] = action
+        
     # Возвращаем словарь с полной информацией
     return {
         'all_actions': actions,

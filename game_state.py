@@ -50,9 +50,12 @@ class GameState:
         self.territory_mode = [False, False]  # for each player his own mode
         self.marking_dead_mode = [False, False]
         self.suggestion_stone_mode = [True, True]
+        self.dont_show_suggestion_stone = False
     
         self.suggestion_stone_color="black"
         self.voronoi_polygons = []
+        self.not_marked_as_dead_stones = []
+        self.alive_voronoi_polygons = [] # voronoi polygons for the not_marked_as_dead stones
         self.colors = ["black", "white"]
         self.territory = [0, 0]
         self.moves_counter = 0
@@ -118,7 +121,7 @@ class GameState:
             self.board_to_render_index = (self.board_to_render_index + 1) % len(self.board_to_render_list)
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
-        elif action["key"] == pygame.K_d:
+        elif action["key"] == pygame.K_c:
             self.marking_dead_mode[self.player_to_move] = not self.marking_dead_mode[self.player_to_move]
         elif action["key"] == pygame.K_p:
             self.player_plays_pass()
@@ -136,7 +139,11 @@ class GameState:
             snap_color = self.colors[1]
 
         if any(norm(x - stone.x, y - stone.y) ** 2 < (self.config["stone_radius"] / 5)**2 for stone in self.placed_stones):
-            x += self.config["stone_radius"] / 3
+            self.dont_show_suggestion_stone = True
+            return None, None
+        else:
+            self.dont_show_suggestion_stone = False
+
         return snap_stone(
             user_input=(x, y, is_not_nearest_possible), 
             game_state=self,
@@ -150,9 +157,18 @@ class GameState:
         self.suggestion_stone_color = self.colors[self.player_to_move] + "_suggestion"
         self.suggestion_stone = Stone(x=x, y=y, color=self.suggestion_stone_color)
         self.calculate_voronoi_polygons()
+        self._calculate_territory()
     
     def placed_and_suggestion_stones(self):
-        return self.placed_stones + ([] if self.is_the_game_over() or self.marking_dead_mode[self.player_to_move] or not self.suggestion_stone_mode[self.player_to_move] else [self.suggestion_stone]) 
+        if self.is_the_game_over():
+            return self.placed_stones
+        if self.marking_dead_mode[self.player_to_move]:
+            return self.placed_stones
+        if not self.suggestion_stone_mode[self.player_to_move]:
+            return self.placed_stones
+        if self.dont_show_suggestion_stone:
+            return self.placed_stones
+        return self.placed_stones + [self.suggestion_stone]
 
     def handle_click(self, action):
         if self.is_the_game_over():
@@ -228,14 +244,6 @@ class GameState:
             ordered=True,
         ).geoms
         self.voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
-        
-        for i in range(len(self.colors)):
-            if i == self.player_to_move:
-                player_colors = [self.colors[i], self.suggestion_stone_color] 
-            else:
-                player_colors = [self.colors[i]]
-            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.voronoi_polygons, self.placed_and_suggestion_stones()))
-            self.territory[i] = round(area_i / (4 * self.config["stone_radius"] ** 2), 2)
 
     def get_list_of_shapes_to_draw(self):
         self.update(user_input=None)
@@ -245,19 +253,12 @@ class GameState:
         return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
 
     def _get_list_of_territory_polygons(self):
-        not_marked_as_dead_stones = [stone for stone in self.placed_and_suggestion_stones() if not stone.is_marked()]
-        voronoi_polygons = shapely.voronoi_polygons(
-            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in not_marked_as_dead_stones]), #  
-            extend_to=self.board,
-            ordered=True,
-        ).geoms
-        voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
-
+        self._calculate_territory()
         polygon_colors = []
-        for stone in not_marked_as_dead_stones:
+        for stone in self.not_marked_as_dead_stones:
             polygon_colors.append(stone.color + "_territory")
 
-        rt = list(zip(voronoi_polygons, polygon_colors)) 
+        rt = list(zip(self.alive_voronoi_polygons, polygon_colors)) 
         return rt
 
     def _get_list_of_stones_to_draw(self):
@@ -312,6 +313,23 @@ class GameState:
         ]
         return [(shapely.Polygon([[x + delta_x, y + delta_y] for (x, y) in elem]), "board_border") for elem in rectangles]
     
+    def _calculate_territory(self):
+        self.not_marked_as_dead_stones = [stone for stone in self.placed_and_suggestion_stones() if not stone.is_marked()]
+        self.alive_voronoi_polygons = shapely.voronoi_polygons(
+            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.not_marked_as_dead_stones]), #  
+            extend_to=self.board,
+            ordered=True,
+        ).geoms
+        self.alive_voronoi_polygons = [shapely.intersection(elem, self.board) for elem in self.alive_voronoi_polygons]
+
+        for i in range(len(self.colors)):
+            if i == self.player_to_move:
+                player_colors = [self.colors[i], self.suggestion_stone_color] 
+            else:
+                player_colors = [self.colors[i]]
+            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.alive_voronoi_polygons, self.not_marked_as_dead_stones))
+            self.territory[i] = round(area_i / (4 * self.config["stone_radius"] ** 2), 2)
+
     def get_info(self) -> Dict[str, str]:
         player_name = self.colors[self.player_to_move]
         if self.is_the_game_over():
@@ -327,9 +345,11 @@ class GameState:
         
         return turn_info | {
             "Player placement mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
-            "Player territory mode (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
+            "Player territory mode           (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
+            "Player ghost stone mode         (togle on G)": ["Hide ghost suggestion stone", "Show ghost suggestion stone"][self.suggestion_stone_mode[self.player_to_move]],
+            "Player click mode               (togle on C)": ["Click means placing stones", "Click means marking dead groups"][self.marking_dead_mode[self.player_to_move]],
             "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",
-            f"Toggle background on button ({self.background_to_render_list[self.background_to_render_index]})": "B",
-            f"Toggle board on button ({self.board_to_render_list[self.board_to_render_index]})": "N",
-            "For quit use": "Q",
+            # f"Toggle background on button ({self.background_to_render_list[self.background_to_render_index]})": "B",
+            # f"Toggle board on button ({self.board_to_render_list[self.board_to_render_index]})": "N",
+            # "For quit use": "Q",
         }

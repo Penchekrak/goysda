@@ -263,9 +263,11 @@ class GameState:
 
     def _get_list_of_stones_to_draw(self):
         rt = []
+        r = self.config["stone_radius"]
         for stone in self.placed_and_suggestion_stones():
-            rt.append((shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"]), stone.color))
-            rt.append((shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"] / 5), stone.secondary_color))
+            x, y = stone.x, stone.y
+            rt.append((shapely.Point(x, y).buffer(r), stone.color))
+            rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), stone.secondary_color))
         return rt            
     
     def _get_list_of_connections(self):

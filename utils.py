@@ -418,3 +418,21 @@ def get_opposite_color(color, list_of_two_colors):
         return color.replace(list_of_two_colors[1], list_of_two_colors[0])
     
     raise ValueError(f"Bad color to find opposite color to: {color}")
+
+
+def get_cross_polygon(center_x, center_y, cross_height, cross_width):
+    x, y, h, w = center_x, center_y, cross_height, cross_width
+    return shapely.Polygon([
+        [x - w, y],
+        [x - w - h, y + h],
+        [x - h, y + w + h],
+        [x, y + w],
+        [x + h, y + w + h],
+        [x + w + h, y + h],
+        [x + w, y],
+        [x + w + h, y - h],
+        [x + h, y - w - h],
+        [x, y - w],
+        [x - h, y - w - h],
+        [x - w - h, y - h],
+    ])

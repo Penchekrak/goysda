@@ -268,6 +268,10 @@ class GameState:
             x, y = stone.x, stone.y
             rt.append((shapely.Point(x, y).buffer(r), stone.color))
             rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), stone.secondary_color))
+        if self.marking_dead_mode[self.player_to_move]:
+            if self.previous_move_action:
+                x, y = self.previous_move_action["x"], self.previous_move_action["y"]
+                rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), get_opposite_color(self.suggestion_stone_color, self.colors)))
         return rt            
     
     def _get_list_of_connections(self):

@@ -62,21 +62,35 @@ def render_cached_real_board(screen, config, delta_x, delta_y):
     board_display.blit(real_board_cached_surface, (0, 0))
     return board_display
 
-def render_board(screen, game_state, config):
+def render_board(screen, game_state, config, transformation):
+    import copy
     delta_x, delta_y = calculate_deltax_deltay(config)
     board_to_render = game_state.board_to_render_list[game_state.board_to_render_index]
+
+    base_surface = pygame.Surface((config['board_width'], config['board_height']))
+    base_surface.fill((128, 128, 255))
     if board_to_render == 'real':
         board_display = render_cached_real_board(screen, config, delta_x, delta_y)
     elif board_to_render == 'limpid':
-        board_display = render_limpid_board(screen, game_state, config, delta_x, delta_y)
+        board_display = render_limpid_board(screen, game_state, config, 0, 0)
     else:
         raise ValueError(f"Unknown board to render: {game_state.board_to_render_list[game_state.board_to_render_index]}")
+    
+    corner_1_and_3 = []
+    for x, y in [[delta_x, delta_y], [config['board_width'] + delta_x, config['board_height'] + delta_y]]:
+        corner_1_and_3_elem = transformation.world_to_screen(x, y)
+        corner_1_and_3_elem = [corner_1_and_3_elem[0] - delta_x, corner_1_and_3_elem[1] - delta_y]
+        corner_1_and_3.append(corner_1_and_3_elem)
+    corner1, corner3 = corner_1_and_3
+
+    base_surface.blit(pygame.transform.scale(board_display, (corner3[0] - corner1[0], corner3[1] - corner1[1])), corner1)
 
     for polygon, color in game_state.get_list_of_shapes_to_draw():
         if len(polygon.exterior.coords) > 2:
-            pygame.draw.polygon(board_display, colors[color], [[elem[0] - delta_x, elem[1] - delta_y] for elem in polygon.exterior.coords])
+            tranformed_coords = [transformation.world_to_screen(elem[0], elem[1]) for elem in polygon.exterior.coords] # 
+            pygame.draw.polygon(base_surface, colors[color], [[tcoord_x - delta_x, tcoord_y - delta_y] for tcoord_x, tcoord_y in tranformed_coords])
 
-    screen.blit(board_display, (delta_x, delta_y))
+    screen.blit(base_surface, (delta_x, delta_y))
 
 def draw_info_panel(screen, game_state, config):
     font_key = pygame.font.SysFont('Courier New', 14)
@@ -122,12 +136,9 @@ def draw_info_panel(screen, game_state, config):
     screen.blit(panel_surface, (panel_x, panel_y))
 
 
-def render(screen, game_state, config):
+def render(screen, game_state, config, transformation):
     screen.fill(colors.get('black'))
     render_background(screen, game_state, config)
-    
-
-    render_board(screen, game_state, config)
-    
+    render_board(screen, game_state, config, transformation)
     draw_info_panel(screen, game_state, config)
     

@@ -11,8 +11,8 @@ import math
 class Stone:
     x: int
     y: int
-    color: Literal['white', 'black', 'light_grey', 'dark_grey']
-    secondary_color: Literal['white', 'black', 'light_grey', 'dark_grey']
+    color: str
+    secondary_color: str
 
     def __init__(self, x, y, color, secondary_color=None):
         secondary_color = secondary_color or color
@@ -24,11 +24,11 @@ class Stone:
     def is_marked(self):
         return self.secondary_color != self.color
     
-    def _as_dict(self):
+    def _asdict(self):
         return {"x": self.x, "y": self.y, "color": self.color, "secondary_color": self.secondary_color}
     
     def __str__(self):
-        return f"{self.__class__.__name__}(" + ", ".join(f"{key} = {value}" for key, value in self._as_dict().items()) + ")"
+        return f"{self.__class__.__name__}(" + ", ".join(f"{key} = {value}" for key, value in self._asdict().items()) + ")"
     
     __repr__ = __str__
 
@@ -58,7 +58,7 @@ class GameState:
         self.alive_voronoi_polygons = [] # voronoi polygons for the not_marked_as_dead stones
         self.colors = ["black", "white"]
         self.territory = [0, 0]
-        self.moves_counter = 0
+        self.actions_counter = 0
 
         self.background_to_render_list = ['clouds', 'water'] 
         self.background_to_render_index = 0 # background_to_render[0] is default, then change in order
@@ -84,6 +84,7 @@ class GameState:
         if user_input is None:
             self.handle_move()
             return
+        
         mouse_action = user_input.get(ActionType.MOUSE_DOWN_LEFT, {})
         if mouse_action:
             self.handle_click(mouse_action)
@@ -98,11 +99,12 @@ class GameState:
             self.handle_keydown(keyboard_action)
             self.handle_move()
 
+    def update_background(self):
         self.background_state = (self.background_state + 1) % default_config['width']
     
     def player_plays_pass(self):
         self.passes_counter += 1
-        self.moves_counter += 1
+        self.actions_counter += 1
         self.pass_the_turn()
     
     def pass_the_turn(self):
@@ -121,7 +123,7 @@ class GameState:
             self.board_to_render_index = (self.board_to_render_index + 1) % len(self.board_to_render_list)
         elif action["key"] == pygame.K_t:
             self.territory_mode[self.player_to_move] = not self.territory_mode[self.player_to_move]
-        elif action["key"] == pygame.K_c:
+        elif action["key"] == pygame.K_x:
             self.marking_dead_mode[self.player_to_move] = not self.marking_dead_mode[self.player_to_move]
         elif action["key"] == pygame.K_p:
             self.player_plays_pass()
@@ -187,12 +189,17 @@ class GameState:
             group_idx = compute_group(selected_stone_idx, self, self.config)
             for stone_idx in group_idx:
                 self.placed_stones[stone_idx].secondary_color = get_opposite_color(self.placed_stones[stone_idx].secondary_color, self.colors)
-
+            
+            self.actions_counter += 1
             return
 
-        self.passes_counter = 0
-        self.moves_counter += 1
         x, y = self._snap_stone(action["x"], action["y"])
+        if x is None:
+            return
+        
+        self.passes_counter = 0
+        self.actions_counter += 1
+
         new_stone = Stone(x=x, y=y, color=self.colors[self.player_to_move])
         self.placed_stones.append(new_stone)
 
@@ -220,16 +227,15 @@ class GameState:
     def to_json(self):
         return {
             "stones": [stone._asdict() for stone in self.placed_stones],
-            "moves_counter": self.moves_counter,
+            "actions_counter": self.actions_counter,
             "passes_counter": self.passes_counter,
-            "is_marked_dead": self.is_marked_dead,
         }
     
     def new_from_json(self, json):
         new_gamestate = self.__class__(self.config)
         new_gamestate.placed_stones = [Stone(**stone_dict) for stone_dict in json["stones"]]
-        new_gamestate.moves_counter = json["moves_counter"]
-        new_gamestate.player_to_move = new_gamestate.moves_counter % 2
+        new_gamestate.actions_counter = json["actions_counter"]
+        new_gamestate.player_to_move = new_gamestate.actions_counter % 2
         new_gamestate.passes_counter = json["passes_counter"]
         new_gamestate.is_marked_dead = json.get("is_marked_dead", False)
         return new_gamestate
@@ -267,7 +273,8 @@ class GameState:
         for stone in self.placed_and_suggestion_stones():
             x, y = stone.x, stone.y
             rt.append((shapely.Point(x, y).buffer(r), stone.color))
-            rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), stone.secondary_color))
+            if stone.is_marked():
+                rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), stone.secondary_color))
         if self.marking_dead_mode[self.player_to_move]:
             if self.previous_move_action:
                 x, y = self.previous_move_action["x"], self.previous_move_action["y"]
@@ -345,7 +352,6 @@ class GameState:
                 turn_info = {"Winner": self.colors[1]}
             else:
                 turn_info = {"Result": "tie"}
-            print(f"Here {turn_info}")
         else:
             turn_info = {"Player": player_name}
         
@@ -353,7 +359,7 @@ class GameState:
             "Player placement mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
             "Player territory mode           (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
             "Player ghost stone mode         (togle on G)": ["Hide ghost suggestion stone", "Show ghost suggestion stone"][self.suggestion_stone_mode[self.player_to_move]],
-            "Player click mode               (togle on C)": ["Click means placing stones", "Click means marking dead groups"][self.marking_dead_mode[self.player_to_move]],
+            "Player click mode               (togle on X)": ["Click means placing stones", "Click means marking dead groups"][self.marking_dead_mode[self.player_to_move]],
             "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",
             # f"Toggle background on button ({self.background_to_render_list[self.background_to_render_index]})": "B",
             # f"Toggle board on button ({self.board_to_render_list[self.board_to_render_index]})": "N",

@@ -1,8 +1,9 @@
-from types import SimpleNamespace
-import numpy as np
 from functools import lru_cache
+
+import numpy as np
 import pygame
 import shapely
+import shapely.ops
 
 
 colors = dict(
@@ -17,8 +18,8 @@ colors = dict(
     dark_grey=(69, 69, 69),
 )
 
-# board_size = 720
-board_size = 600
+board_size = 720
+# board_size = 600
 
 world_size = 950
 
@@ -28,6 +29,7 @@ default_config = {
     'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
+    'board_polygon': [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]],
     'cloud_scale': 0.25,
     'stone_radius': board_size / 26,
     'cloud_count': 10,
@@ -56,6 +58,7 @@ default_config = {
     'board_blur_radius': 30,
     "border_alpha": 0.5,
     "default_alpha": 0.8,
+    'zoom_speed': 0.1,
 }
 
 def update_colors(config):
@@ -436,3 +439,24 @@ def get_cross_polygon(center_x, center_y, cross_height, cross_width):
         [x - h, y - w - h],
         [x - w - h, y - h],
     ])
+
+
+def project_point_onto_polygon(polygon, point):
+    """
+    Finds the closes point to 'point' inside the 'polygon' or in the boundary.
+
+    Args:
+        polygon: A shapely Polygon object.
+        point: A shapely Point object.
+
+    Returns:
+        A shapely Point object representing the projection
+    """
+    if polygon.contains(point):
+        return point
+            
+    return shapely.ops.nearest_points(point, polygon.exterior)[1]
+
+
+def is_control_pressed():
+    return pygame.key.get_pressed()[pygame.KMOD_LCTRL] or pygame.key.get_pressed()[pygame.KMOD_RCTRL]

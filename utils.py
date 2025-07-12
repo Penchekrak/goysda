@@ -60,6 +60,7 @@ default_config = {
     "border_alpha": 0.5,
     "default_alpha": 0.8,
     'zoom_speed': 0.1,
+    "line_width": 1.5,
 }
 
 def update_colors(config):
@@ -98,37 +99,36 @@ def stone_within_the_board(x, y, game_config):
     top = game_config['height'] / 2 + h / 2
     return (x - r >= left) and (x + r <= right) and (y - r >= bottom) and (y + r <= top)
 
-def stone_intersects_others(x0, y0, game_state, game_config):
+def stone_intersects_others(x0, y0, stones_list, game_config):
     """
     Checks if stone does not intersect other stones.
     """
     if not stone_within_the_board(x0, y0, game_config):
         return True
 
-    stones = game_state.placed_stones
     r = game_config['stone_radius']
-    for stone in stones:
+    for stone in stones_list:
         x1, y1 = stone.x, stone.y
         if norm(x1 - x0, y1 - y0) < 4 * r ** 2 - 10**(-5):
             return True
     return False
 
-def multiple_stones_intersect_others(new_stones_coords, game_state, game_config):
+def multiple_stones_intersect_others(new_stones_coords, stones_list, game_config):
     """
     For each of the coords, checks if stone does not intersect other stones.
     NOTE: highly inefficient.
     TODO: rewrite this.
     """
-    return [stone_intersects_others(*s, game_state, game_config) for s in new_stones_coords]
+    return [stone_intersects_others(*s, stones_list, game_config) for s in new_stones_coords]
 
-def compute_double_touch_points(game_state, game_config, snap_color=None):
+def compute_double_touch_points(stones_list, game_config, snap_color=None):
     """
     Returns all possible placements where the point would touch two other stones simultaneously.
     """
     r = game_config['stone_radius']
     doubletouch_points = []
-    for s1 in game_state.placed_stones:
-        for s2 in game_state.placed_stones:
+    for s1 in stones_list:
+        for s2 in stones_list:
 
             if snap_color:
                 if s1.color != snap_color and s2.color != snap_color:
@@ -174,11 +174,11 @@ def compute_double_touch_points(game_state, game_config, snap_color=None):
                     y1 + vy / 2 - wy,
                 ))
 
-    is_ok = multiple_stones_intersect_others(doubletouch_points, game_state, game_config)
+    is_ok = multiple_stones_intersect_others(doubletouch_points, stones_list, game_config)
 
     return [s for (s, intersect) in zip(doubletouch_points, is_ok) if not intersect]
     
-def compute_border_touch_points(game_state, game_config, snap_color=None):
+def compute_border_touch_points(stones_list, game_config, snap_color=None):
     r = game_config['stone_radius']
     w = game_config['board_width']
     h = game_config['board_height']
@@ -189,7 +189,7 @@ def compute_border_touch_points(game_state, game_config, snap_color=None):
     
     bordertouch_points = []
 
-    for s in game_state.placed_stones:
+    for s in stones_list:
 
         if s.color != snap_color:
             continue
@@ -213,11 +213,11 @@ def compute_border_touch_points(game_state, game_config, snap_color=None):
             bordertouch_points.append((x + np.sqrt(add), top))
             bordertouch_points.append((x - np.sqrt(add), top))
     
-    is_ok = multiple_stones_intersect_others(bordertouch_points, game_state, game_config)
+    is_ok = multiple_stones_intersect_others(bordertouch_points, stones_list, game_config)
 
     return [s for (s, intersect) in zip(bordertouch_points, is_ok) if not intersect]
 
-def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=None):
+def compute_perpendicular_touches(x0, y0, stones_list, game_config, snap_color=None):
 
     x0 += np.random.randn() / 1000
     y0 += np.random.randn() / 1000
@@ -225,7 +225,7 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=No
     r = game_config['stone_radius']
     perpendicular_points = []
 
-    for s in game_state.placed_stones:
+    for s in stones_list:
         x1, y1 = s.x, s.y
 
         if snap_color:
@@ -249,11 +249,11 @@ def compute_perpendicular_touches(x0, y0, game_state, game_config, snap_color=No
             y1 - vy * 2 * r
         ))
 
-    is_ok = multiple_stones_intersect_others(perpendicular_points, game_state, game_config)
+    is_ok = multiple_stones_intersect_others(perpendicular_points, stones_list, game_config)
 
     return [s for (s, intersect) in zip(perpendicular_points, is_ok) if not intersect]
 
-def compute_perpendicular_border_touches(x, y, game_state, game_config, snap_color=None):
+def compute_perpendicular_border_touches(x, y, stones_list, game_config, snap_color=None):
     r = game_config['stone_radius']
     w = game_config['board_width']
     h = game_config['board_height']
@@ -276,19 +276,19 @@ def compute_perpendicular_border_touches(x, y, game_state, game_config, snap_col
         (right, bottom)
     ]
 
-    is_ok = multiple_stones_intersect_others(touches, game_state, game_config)
+    is_ok = multiple_stones_intersect_others(touches, stones_list, game_config)
 
     return [s for (s, intersect) in zip(touches, is_ok) if not intersect]
 
-def compute_closest_snap_position(x, y, game_state, game_config, snap_color=None, precomputed_doubletouch_points=None):
+def compute_closest_snap_position(x, y, stones_list, game_config, snap_color=None, precomputed_doubletouch_points=None):
     if precomputed_doubletouch_points:
         dt_points = precomputed_doubletouch_points
     else:
-        dt_points = compute_double_touch_points(game_state, game_config, snap_color)
+        dt_points = compute_double_touch_points(stones_list, game_config, snap_color)
 
-    pd_points = compute_perpendicular_touches(x, y, game_state, game_config, snap_color)
-    bt_points = compute_border_touch_points(game_state, game_config, snap_color)
-    pbd_points = compute_perpendicular_border_touches(x, y, game_state, game_config, snap_color)
+    pd_points = compute_perpendicular_touches(x, y, stones_list, game_config, snap_color)
+    bt_points = compute_border_touch_points(stones_list, game_config, snap_color)
+    pbd_points = compute_perpendicular_border_touches(x, y, stones_list, game_config, snap_color)
     possible_closest_points = dt_points + pd_points + bt_points + pbd_points
 
     min_d = np.inf
@@ -303,9 +303,9 @@ def compute_closest_snap_position(x, y, game_state, game_config, snap_color=None
         
     return xc, yc
 
-def compute_group(stone_idx, game_state, game_config):
+def compute_group(stone_idx, stones_list, game_config):
     r = game_config['stone_radius']
-    stones = game_state.placed_stones
+    stones = stones_list
 
     target_color = stones[stone_idx].color
     threshold_sq = 4 * r ** 2
@@ -337,8 +337,8 @@ def compute_group(stone_idx, game_state, game_config):
 
     return group
 
-def split_stones_by_groups(game_state, game_config):
-    stones = game_state.placed_stones
+def split_stones_by_groups(stones_list, game_config):
+    stones = stones_list
     if not stones:
         return []
 
@@ -348,46 +348,29 @@ def split_stones_by_groups(game_state, game_config):
     for idx in range(len(stones)):
         if idx in visited:
             continue
-        group = compute_group(idx, game_state, game_config)
+        group = compute_group(idx, stones_list, game_config)
         visited.update(group)
         groups.append(group)
 
     return groups
 
-def kill_groups_of_color(color, game_state, game_config):
-    groups = split_stones_by_groups(game_state, game_config)
-    stones_to_kill = []
-
-    precomputed_doubletouch_points = compute_double_touch_points(game_state, game_config, None)
-
-    for group in groups:
-        if game_state.placed_stones[group[0]].color == color:
-            if not group_has_dame(group, game_state, game_config, precomputed_doubletouch_points):
-                # TODO: add KO rule etc
-                stones_to_kill += group
-    kill_group(stones_to_kill, game_state, game_config)
-
-def group_has_dame(group, game_state, game_config, precomputed_doubletouch_points=None):
+def group_has_dame(group, stones_list, game_config, precomputed_doubletouch_points=None):
     r = game_config['stone_radius']
     
     if precomputed_doubletouch_points:
         dt_points = precomputed_doubletouch_points
     else:
-        dt_points = compute_double_touch_points(game_state, game_config, None)
+        dt_points = compute_double_touch_points(stones_list, game_config, None)
     for i in group:
-        s = game_state.placed_stones[i]
+        s = stones_list[i]
         x0, y0 = s.x, s.y
-        x1, y1 = compute_closest_snap_position(x0, y0, game_state, game_config, snap_color=None, precomputed_doubletouch_points=dt_points)
+        x1, y1 = compute_closest_snap_position(x0, y0, stones_list, game_config, snap_color=None, precomputed_doubletouch_points=dt_points)
         if norm(x1 - x0, y1 - y0) <= 4 * r ** 2 + 10**(-5):
             return True
     return False
 
-def kill_group(group, game_state, game_config):
-    game_state.placed_stones = [s for i, s in enumerate(game_state.placed_stones) if i not in group]
-
-
-def calculate_connections_graph(game_state, game_config, tolerance=1e-5):
-    points = shapely.MultiPoint([[stone.x, stone.y] for stone in game_state.placed_and_suggestion_stones()])
+def calculate_connections_graph(stones_list, game_config, tolerance=1e-5):
+    points = shapely.MultiPoint([[stone.x, stone.y] for stone in stones_list])
     point_to_index = {point: i for i, point in enumerate(points.geoms)}
     delone_edges = shapely.delaunay_triangles(points, only_edges=True).geoms
     rt = []
@@ -401,18 +384,21 @@ def rotation_matrix(angle):
     return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
 
-def calculate_two_connection_polygons(x1, y1, x2, y2):
+def calculate_connection_polygon(x1, y1, x2, y2):
     rt = []
     p1, p2 = np.array([x1, y1]), np.array([x2, y2])
     m = (p1 + p2) / 2
-    for sign in [-1, 1]:
-        a = p1
-        b = p1 + (m - p1) @ rotation_matrix(sign * np.pi / 3)
-        c = p1 + (2 * np.sqrt(3) / 3) * (m - p1) @ rotation_matrix(sign * np.pi / 6)
-        d = m + (m - p1) @ rotation_matrix(sign * np.pi / 3)
-        e = p2
-        rt.append(shapely.Polygon([a, b, c, d, e]))
-    return rt
+    return shapely.Polygon([
+        p1,
+        p1 + (m - p1) @ rotation_matrix(np.pi / 3),
+        p1 + (2 * np.sqrt(3) / 3) * (m - p1) @ rotation_matrix(np.pi / 6),
+        m + (m - p1) @ rotation_matrix(np.pi / 3),
+        p2,
+        m + (m - p1) @ rotation_matrix(-np.pi / 3),
+        p1 + (2 * np.sqrt(3) / 3) * (m - p1) @ rotation_matrix(-np.pi / 6),
+        p1 + (m - p1) @ rotation_matrix(-np.pi / 3),
+        p1
+    ])
         
         
 def get_opposite_color(color, list_of_two_colors):
@@ -461,3 +447,36 @@ def project_point_onto_polygon(polygon, point):
 
 def is_control_pressed():
     return pygame.key.get_pressed()[pygame.K_LCTRL] or pygame.key.get_pressed()[pygame.K_RCTRL]
+
+
+def argmin(iterator):
+    iterator = iter(iterator)
+    argmin = 0
+    valmin = next(iterator)
+    for ind, val in enumerate(iterator):
+        if val < valmin:
+            argmin = ind + 1
+            valmin = val
+
+    return argmin
+
+
+def convert_polygon_with_hole_to_polygon_without_hole(polygon):
+    exterior = list(polygon.exterior.coords)
+    interior = list(polygon.interiors[0].coords)[::-1]
+    closest_interior_point_index = argmin(norm(elem[0] - exterior[0][0], elem[1] - exterior[0][1]) for elem in interior)
+
+    interior = interior[closest_interior_point_index:] + interior[:closest_interior_point_index]
+    new_ring = []
+    new_ring.extend(exterior)
+    new_ring.extend(interior)
+    new_ring.append(interior[0])
+    return shapely.Polygon(new_ring)
+
+
+def index_of_stone_that_contains_a_point_or_none(point_x, point_y, stones_list, stones_radius):
+    for stone_idx, stone in enumerate(stones_list):
+        if norm(stone.x - point_x, stone.y - point_y) <= stones_radius ** 2:
+            return stone_idx
+    
+    return None

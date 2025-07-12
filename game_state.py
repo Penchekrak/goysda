@@ -15,11 +15,13 @@ class Stone:
     secondary_color: str
 
     def __init__(self, x, y, color, secondary_color=None):
-        secondary_color = secondary_color or color
         self.x = x
         self.y = y
         self.color = color
-        self.secondary_color = secondary_color
+        self.update_secondary_color(secondary_color or color)
+
+    def update_secondary_color(self, color=None):
+        self.secondary_color = color or self.color
     
     def is_marked(self):
         return self.secondary_color != self.color
@@ -51,8 +53,9 @@ class GameState:
         self.marking_dead_mode = [False, False]
         self.suggestion_stone_mode = [True, True]
         self.dont_show_suggestion_stone = False
-    
-        self.suggestion_stone_color="black"
+        self.fake_stone_mode = [False, False]
+        self.fake_stones = [[], []]
+
         self.voronoi_polygons = []
         self.not_marked_as_dead_stones = []
         self.alive_voronoi_polygons = [] # voronoi polygons for the not_marked_as_dead stones
@@ -69,7 +72,7 @@ class GameState:
         self.config = config
         delta_x, delta_y = calculate_deltax_deltay(config)
         self.board = shapely.Polygon([[delta_x + elem_x, delta_y + elem_y] for elem_x, elem_y in config["board_polygon"]])
-        self.board_inner = shapely.Polygon(shapely.intersection(self.board, self.board.exterior.buffer(self.config["stone_radius"])).interiors[0])
+        self.board_inner = shapely.Polygon(shapely.intersection(self.board, self.board.exterior.buffer(self.config["stone_radius"] + 1e-4)).interiors[0])
         self.previous_move_action = {"x": 0, "y": 0}
         self.update(action=None)
     
@@ -124,6 +127,8 @@ class GameState:
             self.player_plays_pass()
         elif action["key"] == pygame.K_g:
             self.suggestion_stone_mode[self.player_to_move] = not self.suggestion_stone_mode[self.player_to_move]
+        elif action["key"] == pygame.K_f:
+            self.fake_stone_mode[self.player_to_move] = not self.fake_stone_mode[self.player_to_move]
         elif action["key"] == pygame.K_q:
             exit()
 
@@ -134,25 +139,28 @@ class GameState:
             snap_color = self.colors[0]
         else:
             snap_color = self.colors[1]
+        
+        if index_of_stone_that_contains_a_point_or_none(x, y, self.placed_stones, self.config["stone_radius"] / 5) is not None:
+            self.dont_show_suggestion_stone = True
+            return None, None
 
-        if any(norm(x - stone.x, y - stone.y) ** 2 < (self.config["stone_radius"] / 5)**2 for stone in self.placed_stones):
+        elif self.fake_stone_mode[self.player_to_move] and index_of_stone_that_contains_a_point_or_none(x, y, self.fake_stones[self.player_to_move], self.config["stone_radius"]) is not None:
             self.dont_show_suggestion_stone = True
             return None, None
         else:
             self.dont_show_suggestion_stone = False
-
+        
         return snap_stone(
             user_input=(x, y, is_not_nearest_possible), 
-            game_state=self,
-            game_config=default_config,
+            stones_list=self.placed_stones + self.fake_stones[self.player_to_move],
+            game_config=self.config,
             snap_color=snap_color if is_not_nearest_possible else None,
         )
     
     def handle_move(self, action=None):
         self.previous_move_action = action or self.previous_move_action
         x, y = self._snap_stone(self.previous_move_action["x"], self.previous_move_action["y"])
-        self.suggestion_stone_color = self.colors[self.player_to_move] + "_suggestion"
-        self.suggestion_stone = Stone(x=x, y=y, color=self.suggestion_stone_color)
+        self.suggestion_stone = Stone(x, y, self.colors[self.player_to_move] + "_suggestion")
         self.calculate_voronoi_polygons()
         self._calculate_territory()
     
@@ -165,6 +173,16 @@ class GameState:
             return self.placed_stones
         if self.dont_show_suggestion_stone:
             return self.placed_stones
+        if self.fake_stone_mode[self.player_to_move]:
+            if "_hollow" not in self.suggestion_stone.color:
+                self.suggestion_stone.color += "_hollow"
+
+        elif "_hollow" in self.suggestion_stone.color:
+            self.suggestion_stone.color = self.suggestion_stone.color.replace("_hollow", "")
+        else:
+            pass
+        self.suggestion_stone.update_secondary_color()
+
         return self.placed_stones + [self.suggestion_stone]
 
     def handle_click(self, action):
@@ -173,19 +191,32 @@ class GameState:
         
         if self.marking_dead_mode[self.player_to_move]:
             x, y = action["x"], action["y"]
-            for stone_idx, stone in enumerate(self.placed_stones):
-                if norm(stone.x - x, stone.y - y) <= self.config["stone_radius"] ** 2:
-                    if stone.color == self.colors[self.player_to_move]:
-                        selected_stone_idx = stone_idx
-                        break
-            else:
+            stone_of_player_color = [stone for stone in self.placed_stones if self.colors[self.player_to_move] in stone.color]
+            selected_stone_idx = index_of_stone_that_contains_a_point_or_none(x, y, stone_of_player_color, self.config["stone_radius"])
+            if selected_stone_idx is None:
                 return
             
-            group_idx = compute_group(selected_stone_idx, self, self.config)
+            group_idx = compute_group(selected_stone_idx, stone_of_player_color, self.config)
             for stone_idx in group_idx:
-                self.placed_stones[stone_idx].secondary_color = get_opposite_color(self.placed_stones[stone_idx].secondary_color, self.colors)
+                if "_suggestion" not in stone_of_player_color[stone_idx].color:
+                    stone_of_player_color[stone_idx].secondary_color = get_opposite_color(stone_of_player_color[stone_idx].secondary_color, self.colors)
             
             self.actions_counter += 1
+            return
+        
+        if self.fake_stone_mode[self.player_to_move]:
+            self.actions_counter += 1
+            selected_fake_stone_idx = index_of_stone_that_contains_a_point_or_none(action["x"], action["y"], self.fake_stones[self.player_to_move], self.config["stone_radius"])
+            if selected_fake_stone_idx is not None:
+                self.fake_stones[self.player_to_move].pop(selected_fake_stone_idx)
+                return
+            
+            x, y = self._snap_stone(action["x"], action["y"])
+            if x is None:
+                return
+            
+            new_fake_stone = Stone(x=x, y=y, color=self.colors[self.player_to_move] + "_hollow")
+            self.fake_stones[self.player_to_move].append(new_fake_stone)
             return
 
         x, y = self._snap_stone(action["x"], action["y"])
@@ -200,15 +231,15 @@ class GameState:
 
         current_player_color = self.colors[self.player_to_move]
         opponent_color = self.colors[(self.player_to_move + 1) % 2]
-        kill_groups_of_color(opponent_color, self, default_config)
-        kill_groups_of_color(current_player_color, self, default_config)
+        self._kill_groups_of_color(opponent_color)
+        self._kill_groups_of_color(current_player_color)
         
         self.pass_the_turn()
         self.update_secondary_colors()
         self.calculate_voronoi_polygons()
     
     def update_secondary_colors(self):
-        stone_groups = split_stones_by_groups(self, self.config)
+        stone_groups = split_stones_by_groups(self.placed_stones, self.config)
         for stone_group in stone_groups:
             color_to_mark_group = None
             for stone_idx in stone_group:
@@ -237,7 +268,7 @@ class GameState:
 
     def calculate_voronoi_polygons(self):
         if [self.suggestion_stone.x, self.suggestion_stone.y] in [[stone.x, stone.y] for stone in self.placed_stones]:
-            self.suggestion_stone = Stone(self.suggestion_stone.x + 1, self.suggestion_stone.y, color=self.suggestion_stone_color)
+            self.suggestion_stone = Stone(self.suggestion_stone.x + 1, self.suggestion_stone.y, color=self.suggestion_stone.color)
 
         voronoi_polygons = shapely.voronoi_polygons(
             geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.placed_and_suggestion_stones()]), #  
@@ -253,6 +284,22 @@ class GameState:
         
         return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
 
+    def _kill_groups_of_color(self, color):
+        groups = split_stones_by_groups(self.placed_stones, self.config)
+        stones_to_kill = []
+
+        precomputed_doubletouch_points = compute_double_touch_points(self.placed_stones, self.config, None)
+
+        for group in groups:
+            if self.placed_stones[group[0]].color == color:
+                if not group_has_dame(group, self.placed_stones, self.config, precomputed_doubletouch_points):
+                    # TODO: add KO rule etc
+                    stones_to_kill += group
+        self._kill_group(stones_to_kill)
+    
+    def _kill_group(self, group):
+        self.placed_stones = [s for i, s in enumerate(self.placed_stones) if i not in group]
+    
     def _get_list_of_territory_polygons(self):
         self._calculate_territory()
         polygon_colors = []
@@ -265,36 +312,39 @@ class GameState:
     def _get_list_of_stones_to_draw(self):
         rt = []
         r = self.config["stone_radius"]
-        for stone in self.placed_and_suggestion_stones():
+        for stone in self.placed_and_suggestion_stones() + self.fake_stones[self.player_to_move]:
             x, y = stone.x, stone.y
             rt.append((shapely.Point(x, y).buffer(r), stone.color))
             if stone.is_marked():
                 rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), stone.secondary_color))
+       
         if self.marking_dead_mode[self.player_to_move]:
             if self.previous_move_action:
                 x, y = self.previous_move_action["x"], self.previous_move_action["y"]
-                rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), get_opposite_color(self.suggestion_stone_color, self.colors)))
+                rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), get_opposite_color(self.suggestion_stone.color, self.colors)))
         return rt            
     
     def _get_list_of_connections(self):
         connections = []
-        edges_in_index_format = calculate_connections_graph(self, self.config)
-        placed_and_suggestion_stones = self.placed_and_suggestion_stones()
+        active_stones = self.placed_and_suggestion_stones() + self.fake_stones[self.player_to_move]
+        edges_in_index_format = calculate_connections_graph(active_stones, self.config)
         for edge in edges_in_index_format:
-            stone1, stone2 = placed_and_suggestion_stones[edge[0]], placed_and_suggestion_stones[edge[1]]
-            if stone1.color in self.colors and stone2.color in self.colors:
-                if stone1.color != stone2.color:
-                    continue
-                else:
-                    for elem in calculate_two_connection_polygons(stone1.x, stone1.y, stone2.x, stone2.y):
-                        connections.append((elem, stone1.color + "_connection"))
+            stone1, stone2 = active_stones[edge[0]], active_stones[edge[1]]
+            hollow_suffix = "_hollow" if ("_hollow" in stone1.color or "_hollow" in stone2.color) else ""
+
+            stone1_color, stone2_color = stone1.color.replace("_hollow", ""), stone2.color.replace("_hollow", "")
+            if "_suggestion" not in stone1_color and "_suggestion" not in stone2_color:
+                if stone1_color == stone2_color:
+                    connection = calculate_connection_polygon(stone1.x, stone1.y, stone2.x, stone2.y)
+                    connections.append((connection, stone1_color + "_connection" + hollow_suffix))
             else:
-                if stone1.color in self.colors:
+                if "_suggestion" in stone2_color:
                     stone1, stone2 = stone2, stone1
-                if stone2.color != self.colors[self.player_to_move]:
-                    continue
-                for elem in calculate_two_connection_polygons(stone1.x, stone1.y, stone2.x, stone2.y):
-                    connections.append((elem, stone2.color + "_connection_suggestion"))
+                    stone1_color, stone2_color = stone2_color, stone1_color
+
+                if self.colors[self.player_to_move] in stone2_color: # drawing connections only to the players stones
+                    connection = calculate_connection_polygon(stone1.x, stone1.y, stone2.x, stone2.y)
+                    connections.append((connection, stone2_color + "_connection_suggestion" + hollow_suffix))
         return connections
 
     def _get_list_of_border_stones(self):
@@ -302,8 +352,8 @@ class GameState:
         for stone, voro_poly in zip(self.placed_and_suggestion_stones(), self.voronoi_polygons):
             border_indicator_stone = shapely.Point(stone.x, stone.y).buffer(self.config["stone_radius"] * 2)
             border_indicator_stone = shapely.intersection(border_indicator_stone, voro_poly)
-            if stone.color == self.suggestion_stone_color:
-                rt.append((border_indicator_stone, self.suggestion_stone_color + "_border"))
+            if stone.color == self.suggestion_stone.color:
+                rt.append((border_indicator_stone, self.suggestion_stone.color + "_border"))
             else:
                 rt.append((border_indicator_stone, stone.color + "_border"))
         
@@ -317,7 +367,7 @@ class GameState:
         ]
 
     def _calculate_territory(self):
-        self.not_marked_as_dead_stones = [stone for stone in self.placed_and_suggestion_stones() if not stone.is_marked()]
+        self.not_marked_as_dead_stones = [stone for stone in self.placed_and_suggestion_stones() if not stone.is_marked() and not "_hollow" in stone.color]
         self.alive_voronoi_polygons = shapely.voronoi_polygons(
             geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.not_marked_as_dead_stones]), #  
             extend_to=self.board,
@@ -327,7 +377,7 @@ class GameState:
 
         for i in range(len(self.colors)):
             if i == self.player_to_move:
-                player_colors = [self.colors[i], self.suggestion_stone_color] 
+                player_colors = [self.colors[i], self.suggestion_stone.color] 
             else:
                 player_colors = [self.colors[i]]
             area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.alive_voronoi_polygons, self.not_marked_as_dead_stones))

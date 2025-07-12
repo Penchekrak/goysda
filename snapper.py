@@ -1,6 +1,6 @@
 from utils import *
 
-def snap_stone(user_input, game_state, game_config, snap_color=None):
+def snap_stone(user_input, stones_list, game_config, snap_color=None):
     """
     If snap_to_color is False, then:
     * if stone can be placed at (x, y) we keep them
@@ -22,9 +22,9 @@ def snap_stone(user_input, game_state, game_config, snap_color=None):
 
     # TODO: if not within the board, problems. Fix this.
     if not snap_to_color:
-        if not stone_intersects_others(x, y, game_state, game_config):
+        if not stone_intersects_others(x, y, stones_list, game_config):
             return x, y
         else:
-            return compute_closest_snap_position(x, y, game_state, game_config, snap_color=None)
+            return compute_closest_snap_position(x, y, stones_list, game_config, snap_color=None)
     else:
-        return compute_closest_snap_position(x, y, game_state, game_config, snap_color=snap_color)
+        return compute_closest_snap_position(x, y, stones_list, game_config, snap_color=snap_color)

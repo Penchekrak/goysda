@@ -1,8 +1,10 @@
-import pygame
-from utils import colors
 import random
 import math
 from utils import default_config, calculate_deltax_deltay
+
+import pygame
+import shapely
+from utils import colors
 
 from render_tempates.background_water import render_water_background
 from render_tempates.real_board import create_real_board_surface
@@ -68,24 +70,32 @@ def render_board(screen, game_state, config, transformation):
     board_to_render = game_state.board_to_render_list[game_state.board_to_render_index]
 
     base_surface = pygame.Surface((config['board_width'], config['board_height']))
-    base_surface.fill((128, 128, 255))
-    if board_to_render == 'real':
-        board_display = render_cached_real_board(screen, config, delta_x, delta_y)
-    elif board_to_render == 'limpid':
-        board_display = render_limpid_board(screen, game_state, config, 0, 0)
-    else:
-        raise ValueError(f"Unknown board to render: {game_state.board_to_render_list[game_state.board_to_render_index]}")
+    base_surface.fill(colors["blue"])
+    # if board_to_render == 'real':
+    #     board_display = render_cached_real_board(screen, config, delta_x, delta_y)
+    # elif board_to_render == 'limpid':
+    #     board_display = render_limpid_board(screen, game_state, config, 0, 0)
+    # else:
+    #     raise ValueError(f"Unknown board to render: {game_state.board_to_render_list[game_state.board_to_render_index]}")
     
-    corner_1_and_3 = []
-    for x, y in [[delta_x, delta_y], [config['board_width'] + delta_x, config['board_height'] + delta_y]]:
-        corner_1_and_3_elem = transformation.world_to_screen(x, y)
-        corner_1_and_3_elem = [corner_1_and_3_elem[0] - delta_x, corner_1_and_3_elem[1] - delta_y]
-        corner_1_and_3.append(corner_1_and_3_elem)
-    corner1, corner3 = corner_1_and_3
+    # corner_1_and_3 = []
+    # for x, y in [[delta_x, delta_y], [config['board_width'] + delta_x, config['board_height'] + delta_y]]:
+    #     corner_1_and_3_elem = transformation.world_to_screen(x, y)
+    #     corner_1_and_3_elem = [corner_1_and_3_elem[0] - delta_x, corner_1_and_3_elem[1] - delta_y]
+    #     corner_1_and_3.append(corner_1_and_3_elem)
+    # corner1, corner3 = corner_1_and_3
 
-    base_surface.blit(pygame.transform.scale(board_display, (corner3[0] - corner1[0], corner3[1] - corner1[1])), corner1)
-
-    for polygon, color in game_state.get_list_of_shapes_to_draw():
+    # base_surface.blit(pygame.transform.scale(board_display, (corner3[0] - corner1[0], corner3[1] - corner1[1])), corner1)
+    polygons_list = []
+    for polygon_or_multipolygon, color in game_state.get_list_of_shapes_to_draw():
+        if type(polygon_or_multipolygon) == shapely.Polygon:
+            polygons_list.append((polygon_or_multipolygon, color))
+        elif type(polygon_or_multipolygon) == shapely.MultiPolygon:
+            polygons_list.extend([(polygon, color) for polygon in polygon_or_multipolygon.geoms])
+        else:
+            raise NotImplementedError
+    
+    for polygon, color in polygons_list:
         if len(polygon.exterior.coords) > 2:
             tranformed_coords = [transformation.world_to_screen(elem[0], elem[1]) for elem in polygon.exterior.coords] # 
             pygame.draw.polygon(base_surface, colors[color], [[tcoord_x - delta_x, tcoord_y - delta_y] for tcoord_x, tcoord_y in tranformed_coords])

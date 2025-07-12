@@ -68,35 +68,30 @@ class GameState:
 
         self.config = config
         delta_x, delta_y = calculate_deltax_deltay(config)
-        self.board = shapely.Polygon([
-            [delta_x, delta_y],
-            [delta_x, delta_y + config['board_height']],
-            [delta_x + config['board_width'], delta_y + config['board_height']],
-            [delta_x + config['board_width'], delta_y]
-        ])
+        self.board = shapely.Polygon([[delta_x + elem_x, delta_y + elem_y] for elem_x, elem_y in config["board_polygon"]])
+        self.board_inner = shapely.Polygon(shapely.intersection(self.board, self.board.exterior.buffer(self.config["stone_radius"])).interiors[0])
         self.previous_move_action = {"x": 0, "y": 0}
-        self.update(user_input=None)
+        self.update(action=None)
     
     def is_the_game_over(self):
         return self.passes_counter >= 2
     
-    def update(self, user_input):
-        if user_input is None:
+    def update(self, action):
+        if action is None:
             self.handle_move()
             return
+
+        if "x" in action:
+            action["x"], action["y"] = project_point_onto_polygon(self.board_inner, shapely.Point(action["x"], action["y"])).coords[0]
+        if action["action_type"] == ActionType.MOUSE_DOWN_LEFT:
+            self.handle_click(action)
+            self.handle_move(action)
         
-        mouse_action = user_input.get(ActionType.MOUSE_DOWN_LEFT, {})
-        if mouse_action:
-            self.handle_click(mouse_action)
-            self.handle_move(mouse_action)
+        if action["action_type"] == ActionType.MOUSE_MOTION:
+            self.handle_move(action)
         
-        move_action = user_input.get(ActionType.MOUSE_MOTION, {})
-        if move_action:
-            self.handle_move(move_action)
-        
-        keyboard_action = user_input.get(ActionType.KEY_DOWN, {})
-        if keyboard_action:
-            self.handle_keydown(keyboard_action)
+        if action["action_type"] == ActionType.KEY_DOWN:
+            self.handle_keydown(action)
             self.handle_move()
 
     def update_background(self):
@@ -252,7 +247,7 @@ class GameState:
         self.voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
 
     def get_list_of_shapes_to_draw(self):
-        self.update(user_input=None)
+        self.update(action=None)
         if self.territory_mode[self.player_to_move]:
             return self._get_list_of_territory_polygons() + self._get_list_of_stones_to_draw()
         
@@ -316,16 +311,11 @@ class GameState:
 
     def _get_list_of_border_zones(self):
         delta_x, delta_y = calculate_deltax_deltay(self.config)
-        config = self.config
-        w, h, r = config["board_width"], config["board_height"], config["stone_radius"]
-        rectangles = [
-            [[0, 0], [0, r], [w, r], [w, 0]],
-            [[0, h], [0, h - r], [w, h - r], [w, h]],
-            [[w - r, 0], [w, 0], [w, h], [w - r, h]],
-            [[0, 0], [r, 0], [r, h], [0, h]],
+        return [
+            (self.board, "board_border"),
+            (self.board_inner, "board")
         ]
-        return [(shapely.Polygon([[x + delta_x, y + delta_y] for (x, y) in elem]), "board_border") for elem in rectangles]
-    
+
     def _calculate_territory(self):
         self.not_marked_as_dead_stones = [stone for stone in self.placed_and_suggestion_stones() if not stone.is_marked()]
         self.alive_voronoi_polygons = shapely.voronoi_polygons(

@@ -38,7 +38,7 @@ def main():
     screen = pygame.display.set_mode((config['width'], config['height']))
     delta_x, delta_y = utils.calculate_deltax_deltay(config)
     board = shapely.Polygon([[elem[0] + delta_x, elem[1] + delta_y] for elem in config["board_polygon"]])
-    transformation = Transformation(0, 0, board)
+    transformation = Transformation(0, 0, shapely.convex_hull(board))
     manager = pygame_gui.UIManager((config['width'], config['height']))
     filedialog = FileDailog(
         rect=pygame.Rect((0, 0), (config['width'], config['height'])),
@@ -74,30 +74,28 @@ def main():
                     json.dump([elem.to_json() for elem in game_states_stack], f)
             
         
-        for user_inputs in handle_input(pygame_events, transformation.screen_to_world):
-            if ActionType.MOUSE_SCROLL in user_inputs:
-                action = user_inputs[ActionType.MOUSE_SCROLL]
+        for action in handle_input(pygame_events, transformation.screen_to_world):
+            if action["action_type"] == ActionType.MOUSE_SCROLL:
                 transformation.update_self_zoom(action["x"], action["y"], config["zoom_speed"] * action["value"])
-            if utils.is_control_pressed() or pygame.key.get_pressed()[pygame.K_LCTRL] and ActionType.MOUSE_MOTION in user_inputs: 
-                action = user_inputs[ActionType.MOUSE_MOTION]
+                continue
+
+            if utils.is_control_pressed() and action["action_type"] == ActionType.MOUSE_MOTION: 
                 transformation.update_self_drag(action["rel_x"], action["rel_y"])
 
-            if ActionType.QUIT in user_inputs:
+            if action["action_type"] == ActionType.QUIT:
                 pygame.quit()
                 sys.exit()
 
             # filedialog
-            for action_type, value in user_inputs.items():
-                if action_type != ActionType.KEY_DOWN:
-                    continue
-                if value["key"] == pygame.K_r:
+            if action["action_type"] == ActionType.KEY_DOWN:
+                if action["key"] == pygame.K_r:
                     transformation.reset()
-                if value["key"] == pygame.K_o:
+                if action["key"] == pygame.K_o:
                     filedialog.open_file_dialog("open")
-                elif value["key"] == pygame.K_s:
+                elif action["key"] == pygame.K_s:
                     filedialog.open_file_dialog("save")
-                        
-            if ActionType.UNDO in user_inputs:
+
+            if action["action_type"] == ActionType.UNDO:
                 if len(game_states_stack) >= 2:
                     game_state = copy.deepcopy(game_states_stack[-2])
                     game_states_stack.pop()
@@ -107,7 +105,7 @@ def main():
             
             # Update.
             if not filedialog.is_active():
-                game_state.update(user_inputs)
+                game_state.update(action)
             
             if actions_counter != game_state.actions_counter:
                 game_states_stack.append(copy.deepcopy(game_state))

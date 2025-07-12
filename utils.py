@@ -29,7 +29,10 @@ default_config = {
     'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
-    'board_polygon': [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]],
+    'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
+    # [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    # [[board_size // 2, 0], [0, board_size // 3], [0, 2 * board_size // 3], [board_size // 2, board_size], [board_size, 2 * board_size // 3], [board_size, board_size // 3]], 
+    'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
     'stone_radius': board_size / 26,
     'cloud_count': 10,
@@ -38,7 +41,6 @@ default_config = {
     'cloud_image_path': 'assets/cloud.jpg',
     'stone_border_width': 2,
     'stone_border_radius': 10,
-    'stone_no_click_zone_color': (50, 200, 200), # полупрозрачный серый
     'white_territory_color': (191, 191, 191),
     'white_suggestion_territory_color': (181, 181, 181),
     'black_territory_color': (59, 59, 59),
@@ -54,7 +56,6 @@ default_config = {
     'black_suggestion_color': (40, 40, 40),
     'black_suggestion_border_color': (69, 69, 69),
     'board_border_color': (128, 128, 128),
-    'board_color': (204, 102, 0),
     'board_blur_radius': 30,
     "border_alpha": 0.5,
     "default_alpha": 0.8,
@@ -459,4 +460,4 @@ def project_point_onto_polygon(polygon, point):
 
 
 def is_control_pressed():
-    return pygame.key.get_pressed()[pygame.KMOD_LCTRL] or pygame.key.get_pressed()[pygame.KMOD_RCTRL]
+    return pygame.key.get_pressed()[pygame.K_LCTRL] or pygame.key.get_pressed()[pygame.K_RCTRL]

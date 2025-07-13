@@ -31,8 +31,8 @@ default_config = {
     'board_width': board_size,
     'board_height': board_size,
     # 'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
-    # 'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
-    'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
+    'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
     'stone_radius': board_size / 26,
@@ -368,15 +368,12 @@ def calculate_connection_polygon(x1, y1, x2, y2):
     p1, p2 = np.array([x1, y1]), np.array([x2, y2])
     m = (p1 + p2) / 2
     return shapely.Polygon([
-        p1,
         p1 + (m - p1) @ rotation_matrix(np.pi / 3),
         p1 + (2 * np.sqrt(3) / 3) * (m - p1) @ rotation_matrix(np.pi / 6),
         m + (m - p1) @ rotation_matrix(np.pi / 3),
-        p2,
         m + (m - p1) @ rotation_matrix(-np.pi / 3),
         p1 + (2 * np.sqrt(3) / 3) * (m - p1) @ rotation_matrix(-np.pi / 6),
         p1 + (m - p1) @ rotation_matrix(-np.pi / 3),
-        p1
     ])
         
         
@@ -461,14 +458,52 @@ def index_of_stone_that_contains_a_point_or_none(point_x, point_y, stones_list, 
     return None
 
 
-def has_uncovered_arc(circle_C, list_of_circles, alpha=0):
-    if alpha < 0:
-        return True
-    two_pi = 2 * math.pi
-    if alpha > two_pi:
-        return False
-        
+
+def point_in_polygon(x, y, poly):
+    n = len(poly)
+    inside = False
+    for i in range(n):
+        j = (i - 1) % n
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+            inside = not inside
+    return inside
+
+
+def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2, tol=1e-5):
+    dx = x2 - x1
+    dy = y2 - y1
+    A = dx * dx + dy * dy
+    if A < tol:
+        return []
+    B = 2 * (dx * (x1 - x0) + dy * (y1 - y0))
+    C = (x1 - x0) ** 2 + (y1 - y0) ** 2 - r0 ** 2
+    discriminant = B * B - 4 * A * C
+    if discriminant < 0:
+        return []
+    sqrt_disc = math.sqrt(discriminant)
+    t1 = (-B - sqrt_disc) / (2 * A)
+    t2 = (-B + sqrt_disc) / (2 * A)
+    intersections = []
+    for t in [t1, t2]:
+        if 0 - tol <= t <= 1 + tol:
+            x = x1 + t * dx
+            y = y1 + t * dy
+            angle = math.atan2(y - y0, x - x0)
+            angle = angle % (2 * math.pi)
+            intersections.append(angle)
+    return intersections
+
+
+def find_uncovered_arc(circle_C, list_of_circles, list_of_polygons, alpha=0):
     x0, y0, r0 = circle_C
+    two_pi = 2 * math.pi
+    if alpha < 0:
+        return [(0.0, two_pi)]
+    if alpha > two_pi:
+        return []
+    
     intervals = []
     
     for circle in list_of_circles:
@@ -488,7 +523,7 @@ def has_uncovered_arc(circle_C, list_of_circles, alpha=0):
             else:
                 continue
         else:
-            cos_theta = (r0*r0 + d*d - r_d*r_d) / (2 * r0 * d)
+            cos_theta = (r0*r0 + d_sq - r_d*r_d) / (2 * r0 * d)
             if cos_theta < -1:
                 cos_theta = -1
             elif cos_theta > 1:
@@ -512,14 +547,64 @@ def has_uncovered_arc(circle_C, list_of_circles, alpha=0):
             else:
                 intervals.append((a, two_pi))
                 intervals.append((0, b))
-                intervals.append((a + two_pi, 2*two_pi + two_pi))
+                intervals.append((a + two_pi, two_pi + two_pi))
                 intervals.append((two_pi, b + two_pi))
                 
+    for polygon in list_of_polygons:
+        intersections = set()
+        any_intersection = False
+        n_vertices = len(polygon)
+        for i in range(n_vertices):
+            x1, y1 = polygon[i]
+            x2, y2 = polygon[(i + 1) % n_vertices]
+            segment_intersections = circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2)
+            if segment_intersections:
+                any_intersection = True
+                for angle in segment_intersections:
+                    intersections.add(angle)
+        intersections = sorted(intersections)
+        if not any_intersection:
+            test_x = x0 + r0
+            test_y = y0
+            if point_in_polygon(test_x, test_y, polygon):
+                intervals.append((0, two_pi))
+                intervals.append((two_pi, 2 * two_pi))
+        else:
+            if len(intersections) < 2:
+                test_x = x0 + r0 * math.cos(0)
+                test_y = y0 + r0 * math.sin(0)
+                if point_in_polygon(test_x, test_y, polygon):
+                    intervals.append((0, two_pi))
+                    intervals.append((two_pi, 2 * two_pi))
+            else:
+                n_intersect = len(intersections)
+                for i in range(n_intersect):
+                    start_angle = intersections[i]
+                    end_angle = intersections[(i + 1) % n_intersect]
+                    if i == n_intersect - 1:
+                        mid_angle = (start_angle + end_angle + two_pi) / 2.0
+                        if mid_angle >= two_pi:
+                            mid_angle -= two_pi
+                    else:
+                        mid_angle = (start_angle + end_angle) / 2.0
+                    mid_x = x0 + r0 * math.cos(mid_angle)
+                    mid_y = y0 + r0 * math.sin(mid_angle)
+                    if point_in_polygon(mid_x, mid_y, polygon):
+                        if i == n_intersect - 1:
+                            intervals.append((start_angle, two_pi))
+                            intervals.append((0, end_angle))
+                            intervals.append((start_angle + two_pi, 2 * two_pi))
+                            intervals.append((two_pi, end_angle + two_pi))
+                        else:
+                            intervals.append((start_angle, end_angle))
+                            intervals.append((start_angle + two_pi, end_angle + two_pi))
+    
     if not intervals:
-        return True
+        gaps = [(0.0, two_pi)]
+        result = [gap for gap in gaps if gap[1] - gap[0] >= alpha]
+        return result
         
     intervals.sort(key=lambda x: x[0])
-    
     merged = []
     current_start, current_end = intervals[0]
     for i in range(1, len(intervals)):
@@ -532,69 +617,38 @@ def has_uncovered_arc(circle_C, list_of_circles, alpha=0):
             current_start, current_end = s, e
     merged.append((current_start, current_end))
     
-    current = 0.0
-    for inter in merged:
-        s, e = inter
-        if e < current:
+    covered_in_0_2pi = []
+    for s, e in merged:
+        if s >= 2 * two_pi and e >= 2 * two_pi:
             continue
-        if s > two_pi:
-            break
+        s_clip = max(s, 0)
+        e_clip = min(e, two_pi)
+        if s_clip < two_pi and e_clip > s_clip:
+            covered_in_0_2pi.append((s_clip, e_clip))
+        elif s < two_pi and e >= two_pi and s_clip < two_pi:
+            covered_in_0_2pi.append((s_clip, two_pi))
+    
+    covered_in_0_2pi.sort(key=lambda x: x[0])
+    gaps = []
+    current = 0.0
+    for s, e in covered_in_0_2pi:
         if s > current:
-            gap_length = s - current
-            if gap_length >= alpha:
-                return True
+            gaps.append((current, s))
         current = max(current, e)
-        if current >= two_pi:
-            break
-            
     if current < two_pi:
-        gap_length = two_pi - current
-        if gap_length >= alpha:
-            return True
-            
-    return False
+        gaps.append((current, two_pi))
+    
+    result = [ (start, end) for (start, end) in gaps if (end - start) >= alpha ]
+    return result
 
 
-def reflect_point_over_line(point_x, point_y, line_point0_x, line_point0_y, line_point1_x, line_point1_y):
-    """
-    Reflects a point over a line defined by two points.
-
-    Args:
-        point_x (float): x-coordinate of the point to reflect
-        point_y (float): y-coordinate of the point to reflect
-        line_point0_x (float): x-coordinate of the first point on the line
-        line_point0_y (float): y-coordinate of the first point on the line
-        line_point1_x (float): x-coordinate of the second point on the line
-        line_point1_y (float): y-coordinate of the second point on the line
-
-    Returns:
-        tuple: (x, y) coordinates of the reflected point
-    """
-    # Vector from line_point0 to line_point1
-    dx = line_point1_x - line_point0_x
-    dy = line_point1_y - line_point0_y
-
-    # Length squared of the line segment
-    d_len2 = dx * dx + dy * dy
-
-    if d_len2 == 0:
-        # Line segment has zero length; can't reflect
-        return point_x, point_y
-
-    # Vector from line_point0 to the point
-    px = point_x - line_point0_x
-    py = point_y - line_point0_y
-
-    # Project vector onto the line
-    dot_product = px * dx + py * dy
-    t = dot_product / d_len2
-
-    # Find the projection point on the line
-    proj_x = line_point0_x + t * dx
-    proj_y = line_point0_y + t * dy
-
-    # Reflect the point over the projection
-    reflect_x = 2 * proj_x - point_x
-    reflect_y = 2 * proj_y - point_y
-
-    return reflect_x, reflect_y
+def thicken_a_line_segment(x0, y0, x1, y1, width):
+    perp_dir = -(y1 - y0), (x1 - x0)
+    c = 1 / math.sqrt(norm(*perp_dir)) * width
+    perp_dir = [perp_dir[0] * c, perp_dir[1] * c] 
+    return [
+        [x0 + perp_dir[0], y0 + perp_dir[1]],
+        [x1 + perp_dir[0], y1 + perp_dir[1]],
+        [x1 - perp_dir[0], y1 - perp_dir[1]],
+        [x0 - perp_dir[0], y0 - perp_dir[1]],
+    ]

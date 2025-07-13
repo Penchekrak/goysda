@@ -1,15 +1,21 @@
 from collections import defaultdict
+
 import shapely
 
-from utils import has_uncovered_arc, reflect_point_over_line
+from utils import find_uncovered_arc, thicken_a_line_segment
 
 
 class StoneStructure:
-    def __init__(self, stones, stone_radius, board_inner):
+    def __init__(self, stones, stone_radius, board):
         self._n = len(stones)
         self._stones = list(stones)
         self._stone_radius = stone_radius
-        self._board_inner_coords = list(board_inner.boundary.coords)
+        self._board_coords = list(board.boundary.coords)
+        self._board_border_circles = [(*elem, self._stone_radius) for elem in self._board_coords]
+        self._board_border_rectangles = []
+        for i in range(len(self._board_coords) - 1):
+            v1, v2 = self._board_coords[i], self._board_coords[i + 1]
+            self._board_border_rectangles.append(thicken_a_line_segment(*v1, *v2, self._stone_radius))
         
         self._delone_neighbours = defaultdict(list)
         self._delone_edges_ind = []
@@ -69,18 +75,16 @@ class StoneStructure:
         return rt
     
     def _calculate_who_had_dame(self):
-        """assignes self._has_dame to the list[bool] where i-the element is true iff i-th stone has dame"""
+        """assignes self._dame to the list[list[(int, int)]] where i-the element contains list of intervalsthat are uncovered by board border and other stones borders for the i-th stone"""
 
         rt = [False] * self._n
         for ind in range(self._n):
             stone_circ = self._ind_to_circle(ind)
             stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius)]
             stone_neighb = stone_neighb[1:] # removing ind-th stone from his neighbours
-            stone_circ_reflected = self._mirror_stone(stone_circ[0], stone_circ[1])
-            rt[ind] = has_uncovered_arc(stone_circ, stone_neighb + stone_circ_reflected)
-            #print(f"{ind = }\n{stone_circ = }\n{stone_neighb = }\n{stone_circ_reflected = }\n{rt[ind] = }\n")
+            rt[ind] = find_uncovered_arc(stone_circ, stone_neighb + self._board_border_circles, self._board_border_rectangles)
 
-        self._has_dame = rt
+        self._dame = rt
     
     def stone_has_dame(self, stone_ind):
-        return self._has_dame[stone_ind]
+        return bool(self._dame[stone_ind])

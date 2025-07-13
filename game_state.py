@@ -291,7 +291,7 @@ class GameState:
         return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
 
     def _kill_groups_of_color(self, color):
-        stones_sturcture = StoneStructure(self.placed_stones, self.config["stone_radius"], self.board_inner)
+        stones_sturcture = StoneStructure(self.placed_stones, self.config["stone_radius"], self.board)
         groups = split_stones_by_groups(self.placed_stones, self.config)
         stones_to_kill = []
 

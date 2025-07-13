@@ -1,3 +1,4 @@
+import math
 from functools import lru_cache
 
 import numpy as np
@@ -18,7 +19,7 @@ colors = dict(
     dark_grey=(69, 69, 69),
 )
 
-board_size = 720
+board_size = r = 720
 # board_size = 600
 
 world_size = 950
@@ -29,9 +30,9 @@ default_config = {
     'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
-    'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
-    # [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
-    # [[board_size // 2, 0], [0, board_size // 3], [0, 2 * board_size // 3], [board_size // 2, board_size], [board_size, 2 * board_size // 3], [board_size, board_size // 3]], 
+    # 'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
+    # 'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
     'stone_radius': board_size / 26,
@@ -354,30 +355,8 @@ def split_stones_by_groups(stones_list, game_config):
 
     return groups
 
-def group_has_dame(group, stones_list, game_config, precomputed_doubletouch_points=None):
-    r = game_config['stone_radius']
-    
-    if precomputed_doubletouch_points:
-        dt_points = precomputed_doubletouch_points
-    else:
-        dt_points = compute_double_touch_points(stones_list, game_config, None)
-    for i in group:
-        s = stones_list[i]
-        x0, y0 = s.x, s.y
-        x1, y1 = compute_closest_snap_position(x0, y0, stones_list, game_config, snap_color=None, precomputed_doubletouch_points=dt_points)
-        if norm(x1 - x0, y1 - y0) <= 4 * r ** 2 + 10**(-5):
-            return True
-    return False
-
-def calculate_connections_graph(stones_list, game_config, tolerance=1e-5):
-    points = shapely.MultiPoint([[stone.x, stone.y] for stone in stones_list])
-    point_to_index = {point: i for i, point in enumerate(points.geoms)}
-    delone_edges = shapely.delaunay_triangles(points, only_edges=True).geoms
-    rt = []
-    for edge in delone_edges:
-        if edge.length <= 2 * game_config["stone_radius"] + tolerance:
-            rt.append([point_to_index[elem] for elem in edge.boundary.geoms])
-    return rt
+def group_has_dame(group, stones_structure):
+    return any(stones_structure.stone_has_dame(i) for i in group)
 
 
 def rotation_matrix(angle):
@@ -480,3 +459,142 @@ def index_of_stone_that_contains_a_point_or_none(point_x, point_y, stones_list, 
             return stone_idx
     
     return None
+
+
+def has_uncovered_arc(circle_C, list_of_circles, alpha=0):
+    if alpha < 0:
+        return True
+    two_pi = 2 * math.pi
+    if alpha > two_pi:
+        return False
+        
+    x0, y0, r0 = circle_C
+    intervals = []
+    
+    for circle in list_of_circles:
+        x, y, r_d = circle
+        dx = x - x0
+        dy = y - y0
+        d_sq = dx*dx + dy*dy
+        d = math.sqrt(d_sq)
+        
+        if d >= r0 + r_d:
+            continue
+            
+        if d <= abs(r0 - r_d):
+            if r_d >= r0:
+                intervals.append((0, two_pi))
+                intervals.append((two_pi, 2*two_pi))
+            else:
+                continue
+        else:
+            cos_theta = (r0*r0 + d*d - r_d*r_d) / (2 * r0 * d)
+            if cos_theta < -1:
+                cos_theta = -1
+            elif cos_theta > 1:
+                cos_theta = 1
+            theta = math.acos(cos_theta)
+            phi = math.atan2(dy, dx)
+            
+            a = phi - theta
+            b = phi + theta
+            
+            a = a % two_pi
+            if a < 0:
+                a += two_pi
+            b = b % two_pi
+            if b < 0:
+                b += two_pi
+                
+            if a <= b:
+                intervals.append((a, b))
+                intervals.append((a + two_pi, b + two_pi))
+            else:
+                intervals.append((a, two_pi))
+                intervals.append((0, b))
+                intervals.append((a + two_pi, 2*two_pi + two_pi))
+                intervals.append((two_pi, b + two_pi))
+                
+    if not intervals:
+        return True
+        
+    intervals.sort(key=lambda x: x[0])
+    
+    merged = []
+    current_start, current_end = intervals[0]
+    for i in range(1, len(intervals)):
+        s, e = intervals[i]
+        if s <= current_end:
+            if e > current_end:
+                current_end = e
+        else:
+            merged.append((current_start, current_end))
+            current_start, current_end = s, e
+    merged.append((current_start, current_end))
+    
+    current = 0.0
+    for inter in merged:
+        s, e = inter
+        if e < current:
+            continue
+        if s > two_pi:
+            break
+        if s > current:
+            gap_length = s - current
+            if gap_length >= alpha:
+                return True
+        current = max(current, e)
+        if current >= two_pi:
+            break
+            
+    if current < two_pi:
+        gap_length = two_pi - current
+        if gap_length >= alpha:
+            return True
+            
+    return False
+
+
+def reflect_point_over_line(point_x, point_y, line_point0_x, line_point0_y, line_point1_x, line_point1_y):
+    """
+    Reflects a point over a line defined by two points.
+
+    Args:
+        point_x (float): x-coordinate of the point to reflect
+        point_y (float): y-coordinate of the point to reflect
+        line_point0_x (float): x-coordinate of the first point on the line
+        line_point0_y (float): y-coordinate of the first point on the line
+        line_point1_x (float): x-coordinate of the second point on the line
+        line_point1_y (float): y-coordinate of the second point on the line
+
+    Returns:
+        tuple: (x, y) coordinates of the reflected point
+    """
+    # Vector from line_point0 to line_point1
+    dx = line_point1_x - line_point0_x
+    dy = line_point1_y - line_point0_y
+
+    # Length squared of the line segment
+    d_len2 = dx * dx + dy * dy
+
+    if d_len2 == 0:
+        # Line segment has zero length; can't reflect
+        return point_x, point_y
+
+    # Vector from line_point0 to the point
+    px = point_x - line_point0_x
+    py = point_y - line_point0_y
+
+    # Project vector onto the line
+    dot_product = px * dx + py * dy
+    t = dot_product / d_len2
+
+    # Find the projection point on the line
+    proj_x = line_point0_x + t * dx
+    proj_y = line_point0_y + t * dy
+
+    # Reflect the point over the projection
+    reflect_x = 2 * proj_x - point_x
+    reflect_y = 2 * proj_y - point_y
+
+    return reflect_x, reflect_y

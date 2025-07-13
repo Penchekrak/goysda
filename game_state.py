@@ -1,11 +1,14 @@
 from typing import Literal, NamedTuple, Tuple, Dict
-from handle_input import ActionType
-from utils import *
-from snapper import snap_stone
-from enum import Enum
+
 import pygame
 import shapely
 import math
+
+from handle_input import ActionType
+from utils import *
+from snapper import snap_stone
+from stones_structure import StoneStructure
+from enum import Enum
 
 
 class Stone:
@@ -19,6 +22,9 @@ class Stone:
         self.y = y
         self.color = color
         self.update_secondary_color(secondary_color or color)
+    
+    def distance_squared(self, other):
+        return norm(self.x - other.x, self.y - other.y)
 
     def update_secondary_color(self, color=None):
         self.secondary_color = color or self.color
@@ -88,7 +94,6 @@ class GameState:
             action["x"], action["y"] = project_point_onto_polygon(self.board_inner, shapely.Point(action["x"], action["y"])).coords[0]
         if action["action_type"] == ActionType.MOUSE_DOWN_LEFT:
             self.handle_click(action)
-            self.handle_move(action)
         
         if action["action_type"] == ActionType.MOUSE_MOTION:
             self.handle_move(action)
@@ -231,6 +236,7 @@ class GameState:
 
         current_player_color = self.colors[self.player_to_move]
         opponent_color = self.colors[(self.player_to_move + 1) % 2]
+
         self._kill_groups_of_color(opponent_color)
         self._kill_groups_of_color(current_player_color)
         
@@ -285,14 +291,13 @@ class GameState:
         return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
 
     def _kill_groups_of_color(self, color):
+        stones_sturcture = StoneStructure(self.placed_stones, self.config["stone_radius"], self.board_inner)
         groups = split_stones_by_groups(self.placed_stones, self.config)
         stones_to_kill = []
 
-        precomputed_doubletouch_points = compute_double_touch_points(self.placed_stones, self.config, None)
-
         for group in groups:
             if self.placed_stones[group[0]].color == color:
-                if not group_has_dame(group, self.placed_stones, self.config, precomputed_doubletouch_points):
+                if not group_has_dame(group, stones_sturcture):
                     # TODO: add KO rule etc
                     stones_to_kill += group
         self._kill_group(stones_to_kill)
@@ -327,7 +332,7 @@ class GameState:
     def _get_list_of_connections(self):
         connections = []
         active_stones = self.placed_and_suggestion_stones() + self.fake_stones[self.player_to_move]
-        edges_in_index_format = calculate_connections_graph(active_stones, self.config)
+        edges_in_index_format = StoneStructure(active_stones, self.config["stone_radius"], self.board_inner).calculate_connections_graph()
         for edge in edges_in_index_format:
             stone1, stone2 = active_stones[edge[0]], active_stones[edge[1]]
             hollow_suffix = "_hollow" if ("_hollow" in stone1.color or "_hollow" in stone2.color) else ""

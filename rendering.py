@@ -69,8 +69,8 @@ def render_board(screen, game_state, config, transformation):
     delta_x, delta_y = calculate_deltax_deltay(config)
     board_to_render = game_state.board_to_render_list[game_state.board_to_render_index]
 
-    base_surface = pygame.Surface((config['board_width'], config['board_height']))
-    base_surface.fill(colors["blue"])
+    base_surface = pygame.Surface((config['board_width'], config['board_height']), pygame.SRCALPHA)
+    base_surface.fill((0, 0, 0, 0))
     # if board_to_render == 'real':
     #     board_display = render_cached_real_board(screen, config, delta_x, delta_y)
     # elif board_to_render == 'limpid':

@@ -62,6 +62,7 @@ default_config = {
     "default_alpha": 0.8,
     'zoom_speed': 0.1,
     "line_width": 1.5,
+    "window title": 'Sugo - continious Go',
 }
 
 def update_colors(config):

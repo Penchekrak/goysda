@@ -36,6 +36,8 @@ def main():
     fpsClock = pygame.time.Clock()
     
     screen = pygame.display.set_mode((config['width'], config['height']))
+    pygame.display.set_caption(config['window title'])
+
     delta_x, delta_y = utils.calculate_deltax_deltay(config)
     board = shapely.Polygon([[elem[0] + delta_x, elem[1] + delta_y] for elem in config["board_polygon"]])
     transformation = Transformation(0, 0, shapely.convex_hull(board))

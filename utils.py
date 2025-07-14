@@ -30,12 +30,12 @@ default_config = {
     'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
-    # 'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
-    'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
+    # 'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
-    'stone_radius': board_size / 26,
+    'stone_radius': board_size / 13 / 2,
     'cloud_count': 10,
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
@@ -85,7 +85,7 @@ def calculate_deltax_deltay(config):
     return (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
 
 
-def norm(x, y):
+def distance_squared(x, y):
     return x ** 2 + y ** 2
 
 def stone_within_the_board(x, y, game_config):
@@ -111,7 +111,7 @@ def stone_intersects_others(x0, y0, stones_list, game_config):
     r = game_config['stone_radius']
     for stone in stones_list:
         x1, y1 = stone.x, stone.y
-        if norm(x1 - x0, y1 - y0) < 4 * r ** 2 - 10**(-5):
+        if distance_squared(x1 - x0, y1 - y0) < 4 * r ** 2 - 10**(-5):
             return True
     return False
 
@@ -146,9 +146,9 @@ def compute_double_touch_points(stones_list, game_config, snap_color=None):
             vx = x2 - x1
             vy = y2 - y1
 
-            if norm(vx, vy) > 16 * r ** 2:
+            if distance_squared(vx, vy) > 16 * r ** 2:
                 continue # no double touches
-            elif norm(vx, vy) == 16 * r ** 2:
+            elif distance_squared(vx, vy) == 16 * r ** 2:
                 doubletouch_points.append((
                     x1 + vx / 2, 
                     y1 + vy / 2
@@ -158,12 +158,12 @@ def compute_double_touch_points(stones_list, game_config, snap_color=None):
                 wx, wy = vy, -vx
                 
                 # w is normed to 1
-                w_norm = norm(wx, wy)
+                w_norm = distance_squared(wx, wy)
                 wx /= np.sqrt(w_norm)
                 wy /= np.sqrt(w_norm)
 
                 # what do we need to add? sqrt(4r^2 - |v / 2|^2)
-                add_norm = 4 * r ** 2 - norm(vx, vy) / 4
+                add_norm = 4 * r ** 2 - distance_squared(vx, vy) / 4
                 wx *= np.sqrt(add_norm)
                 wy *= np.sqrt(add_norm)
 
@@ -238,7 +238,7 @@ def compute_perpendicular_touches(x0, y0, stones_list, game_config, snap_color=N
         vx = x1 - x0
         vy = y1 - y0
         # v is normed to 1
-        v_norm = norm(vx, vy)
+        v_norm = distance_squared(vx, vy)
         vx /= np.sqrt(v_norm)
         vy /= np.sqrt(v_norm)
         
@@ -298,7 +298,7 @@ def compute_closest_snap_position(x, y, stones_list, game_config, snap_color=Non
     yc = 0.0
 
     for (x1, y1) in possible_closest_points:
-        d = norm(x1 - x, y1 - y)
+        d = distance_squared(x1 - x, y1 - y)
         if d < min_d:
             xc, yc = x1, y1
             min_d = d
@@ -356,8 +356,8 @@ def split_stones_by_groups(stones_list, game_config):
 
     return groups
 
-def group_has_dame(group, stones_structure):
-    return any(stones_structure.stone_has_dame(i) for i in group)
+def group_has_librety(group, stones_structure):
+    return any(stones_structure.stone_has_librety(i) for i in group)
 
 
 def rotation_matrix(angle):
@@ -441,7 +441,7 @@ def argmin(iterator):
 def convert_polygon_with_hole_to_polygon_without_hole(polygon):
     exterior = list(polygon.exterior.coords)
     interior = list(polygon.interiors[0].coords)[::-1]
-    closest_interior_point_index = argmin(norm(elem[0] - exterior[0][0], elem[1] - exterior[0][1]) for elem in interior)
+    closest_interior_point_index = argmin(distance_squared(elem[0] - exterior[0][0], elem[1] - exterior[0][1]) for elem in interior)
 
     interior = interior[closest_interior_point_index:] + interior[:closest_interior_point_index]
     new_ring = []
@@ -453,11 +453,10 @@ def convert_polygon_with_hole_to_polygon_without_hole(polygon):
 
 def index_of_stone_that_contains_a_point_or_none(point_x, point_y, stones_list, stones_radius):
     for stone_idx, stone in enumerate(stones_list):
-        if norm(stone.x - point_x, stone.y - point_y) <= stones_radius ** 2:
+        if distance_squared(stone.x - point_x, stone.y - point_y) <= stones_radius ** 2:
             return stone_idx
     
     return None
-
 
 
 def point_in_polygon(x, y, poly):
@@ -497,7 +496,7 @@ def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2, tol=1e-5):
     return intersections
 
 
-def find_uncovered_arc(circle_C, list_of_circles, list_of_polygons, alpha=0):
+def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha=0):
     x0, y0, r0 = circle_C
     two_pi = 2 * math.pi
     if alpha < 0:
@@ -645,7 +644,7 @@ def find_uncovered_arc(circle_C, list_of_circles, list_of_polygons, alpha=0):
 
 def thicken_a_line_segment(x0, y0, x1, y1, width):
     perp_dir = -(y1 - y0), (x1 - x0)
-    c = 1 / math.sqrt(norm(*perp_dir)) * width
+    c = 1 / math.sqrt(distance_squared(*perp_dir)) * width
     perp_dir = [perp_dir[0] * c, perp_dir[1] * c] 
     return [
         [x0 + perp_dir[0], y0 + perp_dir[1]],

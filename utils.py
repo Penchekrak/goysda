@@ -35,7 +35,7 @@ default_config = {
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
-    'stone_radius': board_size / 19 / 2,
+    'stone_radius': board_size / 13 / 2,
     'cloud_count': 10,
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
@@ -532,9 +532,9 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
         b = phi + theta
 
         if a <= b:
-            intervals.extend([(a - 2 * math.pi, b - 2 * math.pi), (a, b)])
+            intervals.extend([(a - two_pi, b - two_pi), (a, b), (a + two_pi, b + two_pi)])
         elif a < math.pi:
-            intervals.extend([(-2 * math.pi + a, b), (a, 2 * math.pi + b)])
+            intervals.extend([(-two_pi + a, b), (a, two_pi + b)])
     
     # for polygon in list_of_polygons: # works only polygons without obtuse angle
     #     intersections = set()
@@ -586,7 +586,7 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
     #                         intervals.append((start_angle + two_pi, end_angle + two_pi))
     
     if not intervals:
-        return [(0.0, two_pi)]
+        return [(-math.pi, math.pi)]
     
     intervals.sort()
     merged = []
@@ -604,12 +604,12 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
     merged = [[s, e] for s, e in merged if e > s + 1e-5]
     gaps = []
     if -math.pi <= merged[0][0]:
-        gaps.append((None, merged[0][0]))
+        gaps.append((-math.pi, merged[0][0]))
     gaps.extend([(merged[i][1], merged[i + 1][0]) for i in range(len(merged) - 1)])
     if merged[-1][1] < math.pi:
-        gaps.append((merged[-1][1], None))
+        gaps.append((merged[-1][1], math.pi))
 
-    # print(f"{intervals = }\n{merged = }\n{gaps = }\n")
+    print(f"{intervals = }\n{merged = }\n{gaps = }\n")
     return gaps
 
 

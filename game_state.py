@@ -242,7 +242,7 @@ class GameState:
         current_player_color = self.colors[self.player_to_move]
         opponent_color = self.colors[(self.player_to_move + 1) % 2]
 
-        self._kill_groups_of_color(opponent_color)
+        killed_stones = self._kill_groups_of_color(opponent_color)
         self._kill_groups_of_color(current_player_color)
         
         self.pass_the_turn()
@@ -297,7 +297,7 @@ class GameState:
         
         return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
 
-    def _kill_groups_of_color(self, color):
+    def _kill_groups_of_color(self, color, recalculate_stones_structure=True):
         stones_sturcture = StoneStructure(self.placed_stones, self.config["stone_radius"], self.board)
         groups = split_stones_by_groups(self.placed_stones, self.config)
         stones_to_kill = []
@@ -308,6 +308,7 @@ class GameState:
                     # TODO: add KO rule etc
                     stones_to_kill += group
         self._kill_group(stones_to_kill)
+        return len(stones_to_kill)
     
     def _kill_group(self, group):
         self.placed_stones = [s for i, s in enumerate(self.placed_stones) if i not in group]
@@ -335,8 +336,16 @@ class GameState:
                 rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), get_opposite_color(self.suggestion_stone.color, self.colors)))
         
         for i in range(self.active_not_suggestion_stones_structure._n):
-            for xy in self.active_not_suggestion_stones_structure._librety_intervals_in_xy_format[i]:
-                rt.append((shapely.Point(xy[0], xy[1]).buffer(10), "red"))
+            x, y = self.active_not_suggestion_stones_structure[i].x, self.active_not_suggestion_stones_structure[i].y
+            for angles in self.active_not_suggestion_stones_structure._librety_intervals_in_angle_format[i]:
+                angles = list(angles)
+                if angles[0] is None:
+                    angles[0] = -math.pi
+                if angles[1] is None:
+                    angles[1] = math.pi
+                for angle in angles:
+                    xy = x + self.config["stone_radius"] * 2 * math.cos(angle), y + self.config["stone_radius"] * 2 * math.sin(angle)
+                    rt.append((shapely.Polygon(thicken_a_line_segment(xy[0], xy[1], x, y, 3)), "red"))
         return rt            
     
     def _get_list_of_connections(self):

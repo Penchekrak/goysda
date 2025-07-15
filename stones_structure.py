@@ -12,7 +12,7 @@ class StoneStructure:
         self._stones = list(stones)
         self._stone_radius = stone_radius
         self._board_coords = list(board.boundary.coords)
-        self._board_border_circles = [(*elem, self._stone_radius) for elem in self._board_coords]
+        self._board_border_circles = [(*elem, self._stone_radius * (1 + 1e-5)) for elem in self._board_coords]
         self._board_border_rectangles = []
         for i in range(len(self._board_coords) - 1):
             v1, v2 = self._board_coords[i], self._board_coords[i + 1]

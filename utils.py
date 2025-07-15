@@ -30,8 +30,8 @@ default_config = {
     'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
-    'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
-    # 'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    #'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
+    'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
@@ -480,8 +480,6 @@ def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2):
     dx = x2 - x1
     dy = y2 - y1
     A = dx * dx + dy * dy
-    if A < tol:
-        return []
     B = 2 * (dx * (x1 - x0) + dy * (y1 - y0))
     C = (x1 - x0) ** 2 + (y1 - y0) ** 2 - r0 ** 2
     discriminant = B * B - 4 * A * C
@@ -536,54 +534,35 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
         elif a < math.pi:
             intervals.extend([(-two_pi + a, b), (a, two_pi + b)])
     
-    # for polygon in list_of_polygons: # works only polygons without obtuse angle
-    #     intersections = set()
-    #     any_intersection = False
-    #     n_vertices = len(polygon)
-    #     for i in range(n_vertices):
-    #         x1, y1 = polygon[i]
-    #         x2, y2 = polygon[(i + 1) % n_vertices]
-    #         segment_intersections = circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2)
-    #         if segment_intersections:
-    #             any_intersection = True
-    #             for angle in segment_intersections:
-    #                 intersections.add(angle)
-    #     intersections = sorted(intersections)
-    #     if not any_intersection:
-    #         test_x = x0 + r0
-    #         test_y = y0
-    #         if point_in_polygon(test_x, test_y, polygon):
-    #             intervals.append((0, two_pi))
-    #             intervals.append((two_pi, 2 * two_pi))
-    #     else:
-    #         if len(intersections) < 2:
-    #             test_x = x0 + r0 * math.cos(0)
-    #             test_y = y0 + r0 * math.sin(0)
-    #             if point_in_polygon(test_x, test_y, polygon):
-    #                 intervals.append((0, two_pi))
-    #                 intervals.append((two_pi, 2 * two_pi))
-    #         else:
-    #             n_intersect = len(intersections)
-    #             for i in range(n_intersect):
-    #                 start_angle = intersections[i]
-    #                 end_angle = intersections[(i + 1) % n_intersect]
-    #                 if i == n_intersect - 1:
-    #                     mid_angle = (start_angle + end_angle + two_pi) / 2.0
-    #                     if mid_angle >= two_pi:
-    #                         mid_angle -= two_pi
-    #                 else:
-    #                     mid_angle = (start_angle + end_angle) / 2.0
-    #                 mid_x = x0 + r0 * math.cos(mid_angle)
-    #                 mid_y = y0 + r0 * math.sin(mid_angle)
-    #                 if point_in_polygon(mid_x, mid_y, polygon):
-    #                     if i == n_intersect - 1:
-    #                         intervals.append((start_angle, two_pi))
-    #                         intervals.append((0, end_angle))
-    #                         intervals.append((start_angle + two_pi, 2 * two_pi))
-    #                         intervals.append((two_pi, end_angle + two_pi))
-    #                     else:
-    #                         intervals.append((start_angle, end_angle))
-    #                         intervals.append((start_angle + two_pi, end_angle + two_pi))
+    for polygon in list_of_polygons: # for polygon in list_of    for polygon in list_of_polygons: # if polygons has obtuse angle this function may return incorrest answer
+        intersections = []
+        any_intersection = False
+        n_vertices = len(polygon)
+        for i in range(n_vertices):
+            x1, y1 = polygon[i]
+            x2, y2 = polygon[(i + 1) % n_vertices]
+            segment_intersections = circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2)
+            intersections.extend(segment_intersections)
+        # print(intersections)
+        
+        n_intersect = len(intersections)
+        intersections = sorted(intersections)
+        for i in range(n_intersect):
+            start_angle = intersections[i]
+            end_angle = intersections[(i + 1) % n_intersect]
+            if end_angle < start_angle:
+                end_angle += two_pi
+            
+            mid_angle = (start_angle + end_angle) / 2.0
+            mid_x = x0 + r0 * math.cos(mid_angle)
+            mid_y = y0 + r0 * math.sin(mid_angle)
+            if point_in_polygon(mid_x, mid_y, polygon):
+                print(f"{start_angle = }, {end_angle = }")
+                if end_angle > math.pi:
+                    intervals.append((start_angle, end_angle))
+                    intervals.append((start_angle - two_pi, end_angle - two_pi))
+                else:
+                    intervals.append((start_angle, end_angle))
     
     if not intervals:
         return [(-math.pi, math.pi)]
@@ -609,7 +588,7 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
     if merged[-1][1] < math.pi:
         gaps.append((merged[-1][1], math.pi))
 
-    print(f"{intervals = }\n{merged = }\n{gaps = }\n")
+    # print(f"{intervals = }\n{merged = }\n{gaps = }\n")
     return gaps
 
 

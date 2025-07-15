@@ -310,7 +310,7 @@ def compute_group(stone_idx, stones_list, game_config):
     stones = stones_list
 
     target_color = stones[stone_idx].color
-    threshold_sq = 4 * r ** 2
+    threshold_sq = (2 * r + 1e-5) ** 2 
 
     visited = set()
     stack = [stone_idx]
@@ -334,7 +334,7 @@ def compute_group(stone_idx, stones_list, game_config):
                 continue
             dx = other.x - sx
             dy = other.y - sy
-            if dx * dx + dy * dy <= threshold_sq + 10**(-5):
+            if dx * dx + dy * dy <= threshold_sq:
                 stack.append(j)
 
     return group
@@ -476,7 +476,7 @@ def point_in_polygon(x, y, poly):
             inside = not inside
     return inside
 
-def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2, tol=1e-5):
+def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2):
     dx = x2 - x1
     dy = y2 - y1
     A = dx * dx + dy * dy
@@ -492,21 +492,16 @@ def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2, tol=1e-5):
     t2 = (-B + sqrt_disc) / (2 * A)
     intersections = []
     for t in [t1, t2]:
-        if 0 - tol <= t <= 1 + tol:
+        if 0 <= t <= 1:
             x = x1 + t * dx
             y = y1 + t * dy
             angle = math.atan2(y - y0, x - x0)
-            angle = angle % (2 * math.pi)
             intersections.append(angle)
     return intersections
 
 def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsilon=1e-5):
     x0, y0, r0 = circle_C
     two_pi = 2 * math.pi
-    if alpha <= 0:
-        return [(0.0, two_pi)]
-    if alpha > two_pi:
-        return []
     
     intervals = []
     
@@ -522,144 +517,100 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
             
         if d <= abs(r0 - r_d):
             if r_d >= r0:
-                intervals.append((0, two_pi))
-                intervals.append((two_pi, 2*two_pi))
-            else:
-                continue
-        else:
-            cos_theta = (r0*r0 + d_sq - r_d*r_d) / (2 * r0 * d)
-            if cos_theta < -1:
-                cos_theta = -1
-            elif cos_theta > 1:
-                cos_theta = 1
-            theta = math.acos(cos_theta)
-            phi = math.atan2(dy, dx)
-            
-            a = phi - theta
-            b = phi + theta
-            
-            a = a % two_pi
-            if a < 0:
-                a += two_pi
-            b = b % two_pi
-            if b < 0:
-                b += two_pi
-                
-            if a <= b:
-                intervals.append((a, b))
-                intervals.append((a + two_pi, b + two_pi))
-            else:
-                intervals.append((a, two_pi))
-                intervals.append((0, b))
-                intervals.append((a + two_pi, two_pi + two_pi))
-                intervals.append((two_pi, b + two_pi))
-                
-    for polygon in list_of_polygons:
-        intersections = set()
-        any_intersection = False
-        n_vertices = len(polygon)
-        for i in range(n_vertices):
-            x1, y1 = polygon[i]
-            x2, y2 = polygon[(i + 1) % n_vertices]
-            segment_intersections = circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2)
-            if segment_intersections:
-                any_intersection = True
-                for angle in segment_intersections:
-                    intersections.add(angle)
-        intersections = sorted(intersections)
-        if not any_intersection:
-            test_x = x0 + r0
-            test_y = y0
-            if point_in_polygon(test_x, test_y, polygon):
-                intervals.append((0, two_pi))
-                intervals.append((two_pi, 2 * two_pi))
-        else:
-            if len(intersections) < 2:
-                test_x = x0 + r0 * math.cos(0)
-                test_y = y0 + r0 * math.sin(0)
-                if point_in_polygon(test_x, test_y, polygon):
-                    intervals.append((0, two_pi))
-                    intervals.append((two_pi, 2 * two_pi))
-            else:
-                n_intersect = len(intersections)
-                for i in range(n_intersect):
-                    start_angle = intersections[i]
-                    end_angle = intersections[(i + 1) % n_intersect]
-                    if i == n_intersect - 1:
-                        mid_angle = (start_angle + end_angle + two_pi) / 2.0
-                        if mid_angle >= two_pi:
-                            mid_angle -= two_pi
-                    else:
-                        mid_angle = (start_angle + end_angle) / 2.0
-                    mid_x = x0 + r0 * math.cos(mid_angle)
-                    mid_y = y0 + r0 * math.sin(mid_angle)
-                    if point_in_polygon(mid_x, mid_y, polygon):
-                        if i == n_intersect - 1:
-                            intervals.append((start_angle, two_pi))
-                            intervals.append((0, end_angle))
-                            intervals.append((start_angle + two_pi, 2 * two_pi))
-                            intervals.append((two_pi, end_angle + two_pi))
-                        else:
-                            intervals.append((start_angle, end_angle))
-                            intervals.append((start_angle + two_pi, end_angle + two_pi))
+                intervals.append((-math.pi, math.pi))
+            continue
+
+        cos_theta = (r0*r0 + d_sq - r_d*r_d) / (2 * r0 * d)
+        if cos_theta < -1:
+            cos_theta = -1
+        elif cos_theta > 1:
+            cos_theta = 1
+        theta = math.acos(cos_theta)
+        phi = math.atan2(dy, dx)
+        
+        a = phi - theta
+        b = phi + theta
+
+        if a <= b:
+            intervals.extend([(a - 2 * math.pi, b - 2 * math.pi), (a, b)])
+        elif a < math.pi:
+            intervals.extend([(-2 * math.pi + a, b), (a, 2 * math.pi + b)])
+    
+    # for polygon in list_of_polygons: # works only polygons without obtuse angle
+    #     intersections = set()
+    #     any_intersection = False
+    #     n_vertices = len(polygon)
+    #     for i in range(n_vertices):
+    #         x1, y1 = polygon[i]
+    #         x2, y2 = polygon[(i + 1) % n_vertices]
+    #         segment_intersections = circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2)
+    #         if segment_intersections:
+    #             any_intersection = True
+    #             for angle in segment_intersections:
+    #                 intersections.add(angle)
+    #     intersections = sorted(intersections)
+    #     if not any_intersection:
+    #         test_x = x0 + r0
+    #         test_y = y0
+    #         if point_in_polygon(test_x, test_y, polygon):
+    #             intervals.append((0, two_pi))
+    #             intervals.append((two_pi, 2 * two_pi))
+    #     else:
+    #         if len(intersections) < 2:
+    #             test_x = x0 + r0 * math.cos(0)
+    #             test_y = y0 + r0 * math.sin(0)
+    #             if point_in_polygon(test_x, test_y, polygon):
+    #                 intervals.append((0, two_pi))
+    #                 intervals.append((two_pi, 2 * two_pi))
+    #         else:
+    #             n_intersect = len(intersections)
+    #             for i in range(n_intersect):
+    #                 start_angle = intersections[i]
+    #                 end_angle = intersections[(i + 1) % n_intersect]
+    #                 if i == n_intersect - 1:
+    #                     mid_angle = (start_angle + end_angle + two_pi) / 2.0
+    #                     if mid_angle >= two_pi:
+    #                         mid_angle -= two_pi
+    #                 else:
+    #                     mid_angle = (start_angle + end_angle) / 2.0
+    #                 mid_x = x0 + r0 * math.cos(mid_angle)
+    #                 mid_y = y0 + r0 * math.sin(mid_angle)
+    #                 if point_in_polygon(mid_x, mid_y, polygon):
+    #                     if i == n_intersect - 1:
+    #                         intervals.append((start_angle, two_pi))
+    #                         intervals.append((0, end_angle))
+    #                         intervals.append((start_angle + two_pi, 2 * two_pi))
+    #                         intervals.append((two_pi, end_angle + two_pi))
+    #                     else:
+    #                         intervals.append((start_angle, end_angle))
+    #                         intervals.append((start_angle + two_pi, end_angle + two_pi))
     
     if not intervals:
-        gaps = [(0.0, two_pi)]
-        result = [gap for gap in gaps if gap[1] - gap[0] >= -epsilon]
-        return result
-        
-    intervals.sort(key=lambda x: x[0])
+        return [(0.0, two_pi)]
+    
+    intervals.sort()
     merged = []
     current_start, current_end = intervals[0]
     for i in range(1, len(intervals)):
         s, e = intervals[i]
-        if s <= current_end - epsilon:
-            if e > current_end:
-                current_end = e
+        if s + 1e-5 < current_end:
+            current_end = max(current_end, e)
         else:
             merged.append((current_start, current_end))
             current_start, current_end = s, e
     merged.append((current_start, current_end))
     
-    covered_in_0_2pi = []
-    for s, e in merged:
-        if s >= 2 * two_pi and e >= 2 * two_pi:
-            continue
-        s_clip = max(s, 0)
-        e_clip = min(e, two_pi)
-        if s_clip < two_pi and e_clip > s_clip:
-            covered_in_0_2pi.append((s_clip, e_clip))
-        elif s < two_pi and e >= two_pi and s_clip < two_pi:
-            covered_in_0_2pi.append((s_clip, two_pi))
-
-    covered_in_0_2pi.sort(key=lambda x: x[0])
-    covered_in_0_2pi_shrunk = []
-    for interval_start, interval_end in covered_in_0_2pi:
-        if abs(interval_start) < 1e-10:
-            cur_start = 0
-        else:
-            cur_start = interval_start + epsilon
-
-        if abs(interval_end - two_pi) < 1e-10:
-            cur_end = two_pi
-        else:
-            cur_end = interval_end - epsilon
-        covered_in_0_2pi_shrunk.append((cur_start, cur_end))
-
-    # print(f"{covered_in_0_2pi = }\n{covered_in_0_2pi_shrunk = }")
-    covered_in_0_2pi = [elem for elem in covered_in_0_2pi_shrunk if elem[0] != elem[1]]
+    merged = [[s, e] for s, e in merged if e >= -math.pi and s <= math.pi]
+    merged = [[s, e] for s, e in merged if e > s + 1e-5]
     gaps = []
-    
-    current = 0.0
-    for s, e in covered_in_0_2pi:
-        if s > current:
-            gaps.append((current, s))
-        current = max(current, e)
-    if current < two_pi:
-        gaps.append((current, two_pi))
+    if -math.pi <= merged[0][0]:
+        gaps.append((None, merged[0][0]))
+    gaps.extend([(merged[i][1], merged[i + 1][0]) for i in range(len(merged) - 1)])
+    if merged[-1][1] < math.pi:
+        gaps.append((merged[-1][1], None))
 
-    result = [ (start, end) for (start, end) in gaps if (end - start) >= -epsilon ]
-    return result
+    # print(f"{intervals = }\n{merged = }\n{gaps = }\n")
+    return gaps
 
 
 def thicken_a_line_segment(x0, y0, x1, y1, width):

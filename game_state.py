@@ -77,8 +77,8 @@ class GameState:
 
         self.config = config
         delta_x, delta_y = calculate_deltax_deltay(config)
-        self.board = shapely.Polygon([[delta_x + elem_x, delta_y + elem_y] for elem_x, elem_y in config["board_polygon"]])
-        self.board_inner = shapely.Polygon(shapely.intersection(self.board, self.board.exterior.buffer(self.config["stone_radius"] + 1e-4)).interiors[0])
+        self.board = shapely.Polygon([[delta_x + elem_x, delta_y + elem_y] for elem_x, elem_y in config["board_polygon"]]).normalize()
+        self.board_inner = shapely.Polygon(shapely.intersection(self.board, self.board.exterior.buffer(self.config["stone_radius"] * (1 + 1e-4))).interiors[0]).normalize()
         self.previous_move_action = {"x": 0, "y": 0}
         self.recalculate_active_stones_structure()
         self.update(action=None)
@@ -333,6 +333,10 @@ class GameState:
             if self.previous_move_action:
                 x, y = self.previous_move_action["x"], self.previous_move_action["y"]
                 rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), get_opposite_color(self.suggestion_stone.color, self.colors)))
+        
+        for i in range(self.active_not_suggestion_stones_structure._n):
+            for xy in self.active_not_suggestion_stones_structure._librety_intervals_in_xy_format[i]:
+                rt.append((shapely.Point(xy[0], xy[1]).buffer(10), "red"))
         return rt            
     
     def _get_list_of_connections(self):

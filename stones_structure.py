@@ -53,7 +53,7 @@ class StoneStructure:
         while ind < len(rt_list):
             cur_ind = rt_list[ind]
             for neigbour_ind in self._delone_neighbours[cur_ind]:
-                if neigbour_ind not in rt_set and self._stones[stone_ind].distance_squared(self._stones[cur_ind]) <= distance:
+                if neigbour_ind not in rt_set and self._stones[stone_ind].distance_squared(self._stones[cur_ind]) <= distance ** 2:
                     rt_list.append(neigbour_ind)
                     rt_set.add(neigbour_ind)
             ind += 1
@@ -76,24 +76,38 @@ class StoneStructure:
         self._librety_intervals_in_xy_format: list[((int, int), (int, int))] stores stores list of pairs of pairs ((x coord of the start of the interval, y coord of the start of the interval, ), (...same for the end of the interval...))
         """
         #print("Called _calculate_librety_intervals")
+        angle_epsilon = 1e-5
 
         self._librety_intervals_in_angle_format = [(-1, -1)] * self._n
         self._librety_intervals_in_xy_format = [[] for _ in range(self._n)]
-        for ind in range(self._n):
-            print(f"{ind = }")
+        for ind in range(self._n):            
             stone_circ = (self._stones[ind].x, self._stones[ind].y, 2 * self._stone_radius)
-            stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius)]
-            stone_neighb = stone_neighb[1:] # removing ind-th stone from his neighbours
-            
-            librety_intervals = find_uncovered_arcs(stone_circ, stone_neighb + self._board_border_circles, self._board_border_rectangles) # angle format
-            self._librety_intervals_in_angle_format[ind] = librety_intervals
+            stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in range(self._n)] # for neighb_ind in self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius + 1e-5)]
+            #stone_neighb = stone_neighb[1:] # removing ind-th stone from his neighbours
+            stone_neighb.pop(ind)
+            if self._n > 2 and not stone_neighb:
+                print("!" * 50, 4 * self._stone_radius + 1e-5, [math.sqrt(distance_squared(self._stones[ind].x - stone.x, self._stones[ind].y - stone.y)) for stone in self._stones])
+
+            librety_intervals = find_uncovered_arcs(stone_circ, stone_neighb + self._board_border_circles, self._board_border_rectangles, alpha=1e-20, epsilon=angle_epsilon) # angle format
+            self._librety_intervals_in_angle_format[ind] = []
 
             for angle_start, angle_end in librety_intervals:
                 eps = 0
+                angle_start += angle_epsilon
+                angle_end -= angle_epsilon
+                self._librety_intervals_in_angle_format[ind].append((angle_start, angle_end))
                 self._librety_intervals_in_xy_format[ind].append((
                     (self._stones[ind].x + (2 + eps) * self._stone_radius * math.cos(angle_start), self._stones[ind].y + (2 + eps) * self._stone_radius * math.sin(angle_start)),
                     (self._stones[ind].x + (2 + eps) * self._stone_radius * math.cos(angle_end), self._stones[ind].y + (2 + eps) * self._stone_radius * math.sin(angle_end)),
                 ))
+            
+            # print(f"{ind = }")
+            # print(f"circle = {(self._stones[ind].x, self._stones[ind].y, 2 * self._stone_radius)}")
+            # print(f"circles = {stone_neighb}")
+            # print(f"candidate_points = {sum(self._librety_intervals_in_xy_format[ind], tuple())}")
+            # print(f"polygons = {self._board_border_rectangles}")
+            # print(f"board_board_circles = {self._board_border_circles}")
+            # print()
     
     def has_liberty_in_direction(self, stone_ind: int, angle: float) -> bool:
         for interval_start, interval_end in self._librety_intervals_in_angle_format[stone_ind]:
@@ -128,6 +142,8 @@ class StoneStructure:
                 for xy_coords in librety_interval:
                     candidate_points.append(xy_coords)
         
+        if not candidate_points:
+            return None, None
         index_of_closest_candidate = argmin(distance_squared(candidate_x - x, candidate_y - y) for candidate_x, candidate_y in candidate_points)
         # print(f"{x = }; {y = }")
         # print(f"temp = {[elem._asdict() for elem in self._stones]}")

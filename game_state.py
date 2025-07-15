@@ -84,7 +84,6 @@ class GameState:
         self.update(action=None)
     
     def recalculate_active_stones_structure(self):
-        print("Called recalculate_active_stones_structure")
         stones_to_struct = [stone for stone in self.get_active_stones() if "_suggestion" not in stone.color]
         self.active_not_suggestion_stones_structure = StoneStructure(stones_to_struct, self.config["stone_radius"], self.board)
     
@@ -246,8 +245,8 @@ class GameState:
         self._kill_groups_of_color(opponent_color)
         self._kill_groups_of_color(current_player_color)
         
-        self.recalculate_active_stones_structure()
         self.pass_the_turn()
+        self.recalculate_active_stones_structure()
         self.update_secondary_colors()
         self.calculate_voronoi_polygons()
     

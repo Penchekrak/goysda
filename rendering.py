@@ -1,6 +1,6 @@
 import random
 import math
-from utils import default_config, calculate_deltax_deltay, convert_polygon_with_hole_to_polygon_without_hole
+from utils import default_config, calculate_deltax_deltay, remove_interior_if_it_exists
 
 import pygame
 import shapely
@@ -100,7 +100,7 @@ def render_board(screen, game_state, config, transformation):
         if "_hollow" in color:
             color = color.replace("_hollow", "")
             polygon_exterior_thicked = shapely.intersection(polygon.exterior.buffer(config["line_width"]), polygon)
-            polygons_list2.append((convert_polygon_with_hole_to_polygon_without_hole(polygon_exterior_thicked), color))
+            polygons_list2.append((remove_interior_if_it_exists(polygon_exterior_thicked), color))
         else:
             polygons_list2.append((polygon, color))
     polygons_list = polygons_list2

@@ -35,7 +35,7 @@ default_config = {
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
-    'stone_radius': board_size / 13 / 2,
+    'stone_radius': board_size / 19 / 2,
     'cloud_count': 10,
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
@@ -438,7 +438,13 @@ def argmin(iterator):
     return argmin
 
 
-def convert_polygon_with_hole_to_polygon_without_hole(polygon):
+def remove_interior_if_it_exists(polygon):
+    if len(polygon.interiors) > 2:
+        raise NotImplementedError
+    
+    if not polygon.interiors:
+        return polygon
+
     exterior = list(polygon.exterior.coords)
     interior = list(polygon.interiors[0].coords)[::-1]
     closest_interior_point_index = argmin(distance_squared(elem[0] - exterior[0][0], elem[1] - exterior[0][1]) for elem in interior)
@@ -470,7 +476,6 @@ def point_in_polygon(x, y, poly):
             inside = not inside
     return inside
 
-
 def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2, tol=1e-5):
     dx = x2 - x1
     dy = y2 - y1
@@ -495,11 +500,10 @@ def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2, tol=1e-5):
             intersections.append(angle)
     return intersections
 
-
-def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha=0):
+def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsilon=1e-5):
     x0, y0, r0 = circle_C
     two_pi = 2 * math.pi
-    if alpha < 0:
+    if alpha <= 0:
         return [(0.0, two_pi)]
     if alpha > two_pi:
         return []
@@ -601,7 +605,7 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha=0):
     
     if not intervals:
         gaps = [(0.0, two_pi)]
-        result = [gap for gap in gaps if gap[1] - gap[0] >= alpha]
+        result = [gap for gap in gaps if gap[1] - gap[0] >= -epsilon]
         return result
         
     intervals.sort(key=lambda x: x[0])
@@ -609,7 +613,7 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha=0):
     current_start, current_end = intervals[0]
     for i in range(1, len(intervals)):
         s, e = intervals[i]
-        if s <= current_end:
+        if s <= current_end - epsilon:
             if e > current_end:
                 current_end = e
         else:
@@ -627,9 +631,25 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha=0):
             covered_in_0_2pi.append((s_clip, e_clip))
         elif s < two_pi and e >= two_pi and s_clip < two_pi:
             covered_in_0_2pi.append((s_clip, two_pi))
-    
+
     covered_in_0_2pi.sort(key=lambda x: x[0])
+    covered_in_0_2pi_shrunk = []
+    for interval_start, interval_end in covered_in_0_2pi:
+        if abs(interval_start) < 1e-10:
+            cur_start = 0
+        else:
+            cur_start = interval_start + epsilon
+
+        if abs(interval_end - two_pi) < 1e-10:
+            cur_end = two_pi
+        else:
+            cur_end = interval_end - epsilon
+        covered_in_0_2pi_shrunk.append((cur_start, cur_end))
+
+    # print(f"{covered_in_0_2pi = }\n{covered_in_0_2pi_shrunk = }")
+    covered_in_0_2pi = [elem for elem in covered_in_0_2pi_shrunk if elem[0] != elem[1]]
     gaps = []
+    
     current = 0.0
     for s, e in covered_in_0_2pi:
         if s > current:
@@ -637,8 +657,8 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha=0):
         current = max(current, e)
     if current < two_pi:
         gaps.append((current, two_pi))
-    
-    result = [ (start, end) for (start, end) in gaps if (end - start) >= alpha ]
+
+    result = [ (start, end) for (start, end) in gaps if (end - start) >= -epsilon ]
     return result
 
 

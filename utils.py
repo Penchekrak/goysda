@@ -63,6 +63,7 @@ default_config = {
     'zoom_speed': 0.1,
     "line_width": 1.5,
     "window title": 'Sugo - continious Go',
+    'minimal_librety_angle_to_hightlight': math.pi / 180 * 20,
 }
 
 def update_colors(config):
@@ -587,10 +588,10 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
     
     gaps = []
     if -math.pi <= merged[0][0]:
-        gaps.append((left_end, merged[0][0]))
+        gaps.append((merged[-1][1] - two_pi, merged[0][0]))
     gaps.extend([(merged[i][1], merged[i + 1][0]) for i in range(len(merged) - 1)])
     if merged[-1][1] < math.pi:
-        gaps.append((merged[-1][1], right_end))
+        gaps.append((merged[-1][1], merged[0][0] + two_pi))
 
     # print(f"{intervals = }\n{merged = }\n{gaps = }\n")
     return gaps

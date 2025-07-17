@@ -89,14 +89,13 @@ class StoneStructure:
                 print(self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius + 1e-5))
 
             librety_intervals = find_uncovered_arcs(stone_circ, stone_neighb + self._board_border_circles, self._board_border_rectangles, alpha=1e-20, epsilon=0) # angle format
-            self._librety_intervals_in_angle_format[ind] = []
+            self._librety_intervals_in_angle_format[ind] = librety_intervals
             for angle_start, angle_end in librety_intervals:
-                self._librety_intervals_in_angle_format[ind].append((angle_start, angle_end))
                 cur_xy = (
                     (self._stones[ind].x + 2 * self._stone_radius * math.cos(angle_start), self._stones[ind].y + 2 * self._stone_radius * math.sin(angle_start)),
                     (self._stones[ind].x + 2 * self._stone_radius * math.cos(angle_end), self._stones[ind].y + 2 * self._stone_radius * math.sin(angle_end))
                 )
-                self._librety_intervals_in_xy_format[ind].extend(cur_xy)
+                self._librety_intervals_in_xy_format[ind].append(cur_xy)
             
             # print(f"{ind = }")
             # print(f"circle = {(self._stones[ind].x, self._stones[ind].y, 2 * self._stone_radius)}")
@@ -105,6 +104,16 @@ class StoneStructure:
             # print(f"polygons = {self._board_border_rectangles}")
             # print(f"board_board_circles = {self._board_border_circles}")
             # print()
+    
+    def get_small_librety_intervals_in_xy_format(self, threshold_alpha):
+        rt = [[] for _ in range(self._n)]
+        for i in range(self._n):
+            for (angle_start, angle_end), (xy_start, xy_end) in zip(self._librety_intervals_in_angle_format[i], self._librety_intervals_in_xy_format[i]):
+                if angle_end - angle_start > threshold_alpha:
+                    continue
+                rt[i].append((xy_start, xy_end))
+
+        return rt
     
     def has_liberty_in_direction(self, stone_ind: int, angle: float) -> bool:
         angle = angle % (2 * math.pi)
@@ -141,8 +150,8 @@ class StoneStructure:
                 candidate_points.append((center_x + (x - center_x) / dist * 2 * self._stone_radius, center_y + (y - center_y) / dist * 2 * self._stone_radius))
             # else:
                 # print(f"Stone {stone_ind} does not have librety at direction {math.atan2(y - center_y, x - center_x)}")
-            for xy_coords in librety_intervals:
-                candidate_points.append(xy_coords)
+            for xy_of_interval_start, xy_of_interval_end in librety_intervals:
+                candidate_points.extend([xy_of_interval_start, xy_of_interval_end])
         
         if not candidate_points:
             return None, None

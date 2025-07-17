@@ -339,17 +339,12 @@ class GameState:
                 x, y = self.previous_move_action["x"], self.previous_move_action["y"]
                 rt.append((get_cross_polygon(x, y, (2**0.5) * r / 8, r / 16), get_opposite_color(self.suggestion_stone.color, self.colors)))
         
+        small_libreties_for_hightlighting = self.active_not_suggestion_stones_structure.get_small_librety_intervals_in_xy_format(self.config["minimal_librety_angle_to_hightlight"])
         for i in range(self.active_not_suggestion_stones_structure._n):
             x, y = self.active_not_suggestion_stones_structure[i].x, self.active_not_suggestion_stones_structure[i].y
-            for angles in self.active_not_suggestion_stones_structure._librety_intervals_in_angle_format[i]:
-                angles = list(angles)
-                if angles[0] is None:
-                    angles[0] = -math.pi
-                if angles[1] is None:
-                    angles[1] = math.pi
-                for angle in angles:
-                    xy = x + self.config["stone_radius"] * 2 * math.cos(angle), y + self.config["stone_radius"] * 2 * math.sin(angle)
-                    rt.append((shapely.Polygon(thicken_a_line_segment(xy[0], xy[1], x, y, 1)), "red"))
+            for xy_start, xy_end in small_libreties_for_hightlighting[i]:
+                rt.append((shapely.Polygon([[x, y], xy_start, xy_end]), "red"))
+        
         return rt            
     
     def _get_list_of_connections(self):

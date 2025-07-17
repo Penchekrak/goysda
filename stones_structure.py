@@ -81,9 +81,7 @@ class StoneStructure:
         self._librety_intervals_in_xy_format = [[] for _ in range(self._n)]
         for ind in range(self._n):            
             # print(f"{ind = }")
-            stone_circ = (self._stones[ind].x, self._stones[ind].y, 2 * self._stone_radius)
-            # stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in range(self._n)] 
-            # stone_neighb.pop(ind)
+            stone_circ = self._ind_to_circle(ind)
             stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius + 1e-5)]
             stone_neighb = stone_neighb[1:] # removing ind-th stone from his neighbours
             if self._n > 2 and not stone_neighb:
@@ -92,17 +90,13 @@ class StoneStructure:
 
             librety_intervals = find_uncovered_arcs(stone_circ, stone_neighb + self._board_border_circles, self._board_border_rectangles, alpha=1e-20, epsilon=0) # angle format
             self._librety_intervals_in_angle_format[ind] = []
-
             for angle_start, angle_end in librety_intervals:
-                eps = 0
-                # angle_start += angle_epsilon
-                # angle_end -= angle_epsilon
                 self._librety_intervals_in_angle_format[ind].append((angle_start, angle_end))
                 cur_xy = (
-                    (self._stones[ind].x + (2 + eps) * self._stone_radius * math.cos(angle_start), self._stones[ind].y + (2 + eps) * self._stone_radius * math.sin(angle_start)),
-                    (self._stones[ind].x + (2 + eps) * self._stone_radius * math.cos(angle_end), self._stones[ind].y + (2 + eps) * self._stone_radius * math.sin(angle_end))
+                    (self._stones[ind].x + 2 * self._stone_radius * math.cos(angle_start), self._stones[ind].y + 2 * self._stone_radius * math.sin(angle_start)),
+                    (self._stones[ind].x + 2 * self._stone_radius * math.cos(angle_end), self._stones[ind].y + 2 * self._stone_radius * math.sin(angle_end))
                 )
-                self._librety_intervals_in_xy_format[ind] = cur_xy
+                self._librety_intervals_in_xy_format[ind].extend(cur_xy)
             
             # print(f"{ind = }")
             # print(f"circle = {(self._stones[ind].x, self._stones[ind].y, 2 * self._stone_radius)}")

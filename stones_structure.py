@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 import math 
+import random
 import shapely
 
 from utils import argmin, find_uncovered_arcs, thicken_a_line_segment, distance_squared, index_of_stone_that_contains_a_point_or_none
@@ -25,7 +26,7 @@ class StoneStructure:
             self._calculate_librety_intervals()
     
     def _recalculate_delone_graph(self):
-        points = shapely.MultiPoint([[stone.x, stone.y] for stone in self._stones])
+        points = shapely.MultiPoint([[stone.x + 1e-15 * random.random(), stone.y + 1e-15*random.random()] for stone in self._stones]) # 1e-15 is unfortunately needed, due to the bug underneath
         point_to_index = {point: i for i, point in enumerate(points.geoms)}
         delone_edges = shapely.delaunay_triangles(points, only_edges=True).geoms
         delone_edges_ind = []
@@ -34,7 +35,6 @@ class StoneStructure:
             ind1, ind2 = point_to_index[p1], point_to_index[p2]
             delone_edges_ind.append((ind1, ind2) if ind1 < ind2 else (ind2, ind1))
         self._delone_edges_ind = list(set(delone_edges_ind))
-
         delone_neighbours = defaultdict(list)
         for v1, v2 in self._delone_edges_ind:
             delone_neighbours[v1].append(v2)
@@ -80,13 +80,15 @@ class StoneStructure:
         self._librety_intervals_in_angle_format = [(-1, -1)] * self._n
         self._librety_intervals_in_xy_format = [[] for _ in range(self._n)]
         for ind in range(self._n):            
-            print(f"{ind = }")
+            # print(f"{ind = }")
             stone_circ = (self._stones[ind].x, self._stones[ind].y, 2 * self._stone_radius)
-            stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in range(self._n)] # for neighb_ind in self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius + 1e-5)]
-            #stone_neighb = stone_neighb[1:] # removing ind-th stone from his neighbours
-            stone_neighb.pop(ind)
+            # stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in range(self._n)] 
+            # stone_neighb.pop(ind)
+            stone_neighb = [self._ind_to_circle(neighb_ind) for neighb_ind in self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius + 1e-5)]
+            stone_neighb = stone_neighb[1:] # removing ind-th stone from his neighbours
             if self._n > 2 and not stone_neighb:
                 print("!" * 50, 4 * self._stone_radius + 1e-5, [math.sqrt(distance_squared(self._stones[ind].x - stone.x, self._stones[ind].y - stone.y)) for stone in self._stones])
+                print(self.calculate_all_vertexes_within_distance(ind, 4 * self._stone_radius + 1e-5))
 
             librety_intervals = find_uncovered_arcs(stone_circ, stone_neighb + self._board_border_circles, self._board_border_rectangles, alpha=1e-20, epsilon=0) # angle format
             self._librety_intervals_in_angle_format[ind] = []

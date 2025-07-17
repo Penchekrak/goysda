@@ -35,7 +35,7 @@ default_config = {
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
-    'stone_radius': board_size / 13 / 2,
+    'stone_radius': board_size / 19 / 2,
     'cloud_count': 10,
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
@@ -498,6 +498,8 @@ def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2):
     return intersections
 
 def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsilon=1e-5):
+    left_end, right_end = -math.pi, math.pi
+
     x0, y0, r0 = circle_C
     two_pi = 2 * math.pi
     
@@ -557,15 +559,14 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
             mid_x = x0 + r0 * math.cos(mid_angle)
             mid_y = y0 + r0 * math.sin(mid_angle)
             if point_in_polygon(mid_x, mid_y, polygon):
-                print(f"{start_angle = }, {end_angle = }")
+                # print(f"{start_angle = }, {end_angle = }")
                 if end_angle > math.pi:
                     intervals.append((start_angle, end_angle))
                     intervals.append((start_angle - two_pi, end_angle - two_pi))
                 else:
                     intervals.append((start_angle, end_angle))
-    
     if not intervals:
-        return [(-math.pi, math.pi)]
+        return [(left_end, right_end)]
     
     intervals.sort()
     merged = []
@@ -581,12 +582,15 @@ def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsi
     
     merged = [[s, e] for s, e in merged if e >= -math.pi and s <= math.pi]
     merged = [[s, e] for s, e in merged if e > s + 1e-5]
+    if not merged:
+        return [(left_end, right_end)]
+    
     gaps = []
     if -math.pi <= merged[0][0]:
-        gaps.append((-math.pi, merged[0][0]))
+        gaps.append((left_end, merged[0][0]))
     gaps.extend([(merged[i][1], merged[i + 1][0]) for i in range(len(merged) - 1)])
     if merged[-1][1] < math.pi:
-        gaps.append((merged[-1][1], math.pi))
+        gaps.append((merged[-1][1], right_end))
 
     # print(f"{intervals = }\n{merged = }\n{gaps = }\n")
     return gaps

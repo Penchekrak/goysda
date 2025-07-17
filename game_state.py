@@ -242,8 +242,8 @@ class GameState:
         current_player_color = self.colors[self.player_to_move]
         opponent_color = self.colors[(self.player_to_move + 1) % 2]
 
-        killed_stones = self._kill_groups_of_color(opponent_color)
-        self._kill_groups_of_color(current_player_color)
+        killed_stones, previous_stone_sturcture = self._kill_groups_of_color(opponent_color)
+        self._kill_groups_of_color(current_player_color, None if killed_stones else previous_stone_sturcture)
         
         self.pass_the_turn()
         self.recalculate_active_stones_structure()
@@ -297,8 +297,12 @@ class GameState:
         
         return self._get_list_of_border_zones() + self._get_list_of_border_stones() + self._get_list_of_connections() + self._get_list_of_stones_to_draw()
 
-    def _kill_groups_of_color(self, color, recalculate_stones_structure=True):
-        stones_sturcture = StoneStructure(self.placed_stones, self.config["stone_radius"], self.board)
+    def _kill_groups_of_color(self, color, precalculated_stone_structure=None):
+        if precalculated_stone_structure is None:
+            stones_sturcture = StoneStructure(self.placed_stones, self.config["stone_radius"], self.board)
+        else:
+            stones_sturcture = precalculated_stone_structure
+        
         groups = split_stones_by_groups(self.placed_stones, self.config)
         stones_to_kill = []
 
@@ -308,7 +312,7 @@ class GameState:
                     # TODO: add KO rule etc
                     stones_to_kill += group
         self._kill_group(stones_to_kill)
-        return len(stones_to_kill)
+        return len(stones_to_kill), stones_sturcture
     
     def _kill_group(self, group):
         self.placed_stones = [s for i, s in enumerate(self.placed_stones) if i not in group]
@@ -345,7 +349,7 @@ class GameState:
                     angles[1] = math.pi
                 for angle in angles:
                     xy = x + self.config["stone_radius"] * 2 * math.cos(angle), y + self.config["stone_radius"] * 2 * math.sin(angle)
-                    rt.append((shapely.Polygon(thicken_a_line_segment(xy[0], xy[1], x, y, 3)), "red"))
+                    rt.append((shapely.Polygon(thicken_a_line_segment(xy[0], xy[1], x, y, 1)), "red"))
         return rt            
     
     def _get_list_of_connections(self):

@@ -341,9 +341,9 @@ class GameState:
         
         small_libreties_for_hightlighting = self.active_not_suggestion_stones_structure.get_small_librety_intervals_in_xy_format(self.config["minimal_librety_angle_to_hightlight"])
         for i in range(self.active_not_suggestion_stones_structure._n):
-            x, y = self.active_not_suggestion_stones_structure[i].x, self.active_not_suggestion_stones_structure[i].y
+            stone_i = self.active_not_suggestion_stones_structure[i]
             for xy_start, xy_end in small_libreties_for_hightlighting[i]:
-                rt.append((shapely.Polygon([[x, y], xy_start, xy_end]), "red"))
+                rt.append((shapely.Polygon([[stone_i.x, stone_i.y], xy_start, xy_end]), stone_i.color + "_small_librety"))
         
         return rt            
     

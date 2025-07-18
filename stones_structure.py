@@ -9,10 +9,11 @@ from utils import argmin, find_uncovered_arcs, thicken_a_line_segment, distance_
 
 
 class StoneStructure:
-    def __init__(self, stones, stone_radius, board, dont_calculate_dame=False):
+    def __init__(self, stones, stone_radius, board):
         self._n = len(stones)
         self._stones = list(stones)
         self._stone_radius = stone_radius
+        self._board = board
         self._board_coords = list(board.boundary.coords)
         self._board_border_circles = [(*elem, self._stone_radius * (1 + 1e-5)) for elem in self._board_coords]
         self._board_border_rectangles = []
@@ -22,9 +23,9 @@ class StoneStructure:
         
         self._delone_neighbours = defaultdict(list)
         self._delone_edges_ind = []
+        self._voronoi_polygons = []
         self._recalculate_delone_graph()
-        if not dont_calculate_dame:
-            self._calculate_librety_intervals()
+        self._calculate_librety_intervals()
     
     def _recalculate_delone_graph(self):
         points = shapely.MultiPoint([[stone.x + 1e-15 * random.random(), stone.y + 1e-15*random.random()] for stone in self._stones]) # 1e-15 is unfortunately needed, due to the bug underneath
@@ -42,6 +43,12 @@ class StoneStructure:
             delone_neighbours[v2].append(v1)
         
         self._delone_neighbours = delone_neighbours
+        
+        voronoi_polygons = shapely.voronoi_polygons(points, extend_to=self._board, ordered=True)
+        self._voronoi_polygons = [shapely.intersection(pol, self._board) for pol in voronoi_polygons.geoms]
+    
+    def get_voronoi_polygons(self):
+        return self._voronoi_polygons
     
     def calculate_connections_graph(self, tolerance=1e-5):
         return [[ind1, ind2] for ind1, ind2 in self._delone_edges_ind
@@ -169,6 +176,7 @@ class StoneStructure:
     
     def stone_has_librety(self, stone_ind):
         return bool(self._librety_intervals_in_angle_format[stone_ind])
+    
 
 
 class MyCache:

@@ -70,9 +70,7 @@ class GameState:
         self.fake_stones = [[], []]
         self.ko_stones = []
 
-        self.voronoi_polygons = []
         self.not_marked_as_dead_stones = []
-        self.alive_voronoi_polygons = [] # voronoi polygons for the not_marked_as_dead stones
         self.colors = ["black", "white"]
         self.territory = [0, 0]
         self.actions_counter = actions_counter
@@ -113,6 +111,10 @@ class GameState:
             stones.extend(self.fake_stones[self.player_to_move])
         
         self.cached_stone_structures.update("preview", {"args": (stones,)})
+    
+    def update_not_marked_as_dead_structure(self):
+        stones = [stone for stone in self.placed_stones if not stone.is_marked()] + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones()
+        self.cached_stone_structures.update("territory", {"args": (stones,)})
             
     def update_suggestion_stone_status(self):
         x, y = self.previous_move_action["x"], self.previous_move_action["y"]
@@ -128,6 +130,11 @@ class GameState:
             self.dont_show_suggestion_stone = True
         else:
             self.dont_show_suggestion_stone = False
+    
+    def _get_active_fake_stones(self):
+        if self.fake_stone_mode[self.player_to_move]:
+            return self.fake_stones[self.player_to_move]
+        return []
         
     def _get_list_of_0_or_1_suggestion_stones(self):
         if self.dont_show_suggestion_stone:
@@ -213,8 +220,10 @@ class GameState:
         stones_for_librety_previes = self.placed_stones + self.ko_stones
         if not self.dont_show_suggestion_stone:
             stones_for_librety_previes.append(self.suggestion_stone)
+        
         self.update_preview_structure()
-        self.calculate_voronoi_polygons()
+        self.update_not_marked_as_dead_structure()
+
         self._calculate_territory()
     
     def get_active_stones(self):
@@ -255,6 +264,7 @@ class GameState:
                     stone_of_player_color[stone_idx].secondary_color = get_opposite_color(stone_of_player_color[stone_idx].secondary_color, self.colors)
             
             self.actions_counter += 1
+            self.update_not_marked_as_dead_structure()
             return
         
         if self.fake_stone_mode[self.player_to_move]:
@@ -294,7 +304,6 @@ class GameState:
         
         self.pass_the_turn()
         self.update_secondary_colors()
-        self.calculate_voronoi_polygons()
 
         self.dont_show_suggestion_stone = True 
         self.update_placed_stone_structure()
@@ -331,17 +340,6 @@ class GameState:
         )
         return new_gamestate
 
-    def calculate_voronoi_polygons(self):
-        if [self.suggestion_stone.x, self.suggestion_stone.y] in [[stone.x, stone.y] for stone in self.placed_stones]:
-            self.suggestion_stone = Stone(self.suggestion_stone.x + 1, self.suggestion_stone.y, color=self.suggestion_stone.color)
-
-        voronoi_polygons = shapely.voronoi_polygons(
-            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.get_active_stones()]), #  
-            extend_to=self.board,
-            ordered=True,
-        ).geoms
-        self.voronoi_polygons = [shapely.intersection(elem, self.board) for elem in voronoi_polygons]
-
     def get_list_of_shapes_to_draw(self):
         self.update(action=None)
         if self.territory_mode[self.player_to_move]:
@@ -369,8 +367,9 @@ class GameState:
         polygon_colors = []
         for stone in self.not_marked_as_dead_stones:
             polygon_colors.append(stone.color + "_territory")
-
-        rt = list(zip(self.alive_voronoi_polygons, polygon_colors)) 
+        
+        alive_voronoi_polygons = self.cached_stone_structures.get_structure("territory").get_voronoi_polygons()
+        rt = list(zip(alive_voronoi_polygons, polygon_colors)) 
         return rt
 
     def _get_list_of_librety_highliters(self):
@@ -422,7 +421,8 @@ class GameState:
 
     def _get_list_of_border_stones(self):
         rt = []
-        for stone, voro_poly in zip(self.get_active_stones(), self.voronoi_polygons):
+        voronoi_polygons = self.cached_stone_structures.get_structure("preview").get_voronoi_polygons()
+        for stone, voro_poly in zip(self.get_active_stones(), voronoi_polygons):
             border_indicator_stone = shapely.Point(stone.x, stone.y).buffer(self.stone_radius * 2)
             border_indicator_stone = shapely.intersection(border_indicator_stone, voro_poly)
             if stone.color == self.suggestion_stone.color:
@@ -441,19 +441,14 @@ class GameState:
 
     def _calculate_territory(self):
         self.not_marked_as_dead_stones = [stone for stone in self.get_active_stones() if not stone.is_marked() and not "_hollow" in stone.color]
-        self.alive_voronoi_polygons = shapely.voronoi_polygons(
-            geometry=shapely.MultiPoint([[stone.x, stone.y] for stone in self.not_marked_as_dead_stones]), #  
-            extend_to=self.board,
-            ordered=True,
-        ).geoms
-        self.alive_voronoi_polygons = [shapely.intersection(elem, self.board) for elem in self.alive_voronoi_polygons]
+        alive_voronoi_polygons = self.cached_stone_structures.get_structure("territory").get_voronoi_polygons()
 
         for i in range(len(self.colors)):
             if i == self.player_to_move:
                 player_colors = [self.colors[i], self.suggestion_stone.color] 
             else:
                 player_colors = [self.colors[i]]
-            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(self.alive_voronoi_polygons, self.not_marked_as_dead_stones))
+            area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(alive_voronoi_polygons, self.not_marked_as_dead_stones))
             self.territory[i] = round(area_i / (4 * self.stone_radius ** 2), 2)
 
     def get_info(self) -> Dict[str, str]:

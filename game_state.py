@@ -477,6 +477,7 @@ class GameState:
                 player_colors = [self.colors[i]]
             area_i = sum(elem.area * (stone.color in player_colors) for elem, stone in zip(alive_voronoi_polygons, self.not_marked_as_dead_stones))
             self.territory[i] = round(area_i / (4 * self.stone_radius ** 2), 2)
+        self.territory[1] += self.config["komi"]
 
     def get_info(self) -> Dict[str, str]:
         player_name = self.colors[self.player_to_move]

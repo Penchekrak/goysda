@@ -30,8 +30,8 @@ default_config = {
     'fps': 30,
     'board_width': board_size,
     'board_height': board_size,
-    #'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
-    'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
+    #'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
@@ -68,6 +68,7 @@ default_config = {
     "line_width": 1.5,
     "window title": 'Sugo - continious Go',
     'minimal_librety_angle_to_hightlight': math.pi / 180 * 20,
+    "komi": 6.5,
 }
 
 def update_colors(config):

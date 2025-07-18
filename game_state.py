@@ -6,7 +6,6 @@ import math
 
 from handle_input import ActionType
 from utils import *
-from snapper import snap_stone
 from stones_structure import MyCache
 from enum import Enum
 

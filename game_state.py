@@ -99,24 +99,35 @@ class GameState:
         self.cached_stone_structures.update("placed_stones", {"args": (self.placed_stones,)})
     
     def update_structure_for_snapping(self):
-        stones = self.placed_stones
+        stones = self.placed_stones[::]
         if self.fake_stone_mode[self.player_to_move]:
             stones.extend(self.fake_stones[self.player_to_move])
+
+        if self.is_the_game_over():
+            stones = self.placed_stones
         self.cached_stone_structures.update("for_snapping", {"args": (stones,)})
-        # print(f"update_structure_for_snapping: {stones = }\n{self.cached_stone_structures.get_structure('for_snapping')._stones = }\n") 
     
     def update_preview_structure(self):
-        stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones()
-        if self.fake_stone_mode[self.player_to_move]:
-            stones.extend(self.fake_stones[self.player_to_move])
-        
+        stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones()        
+        if self.is_the_game_over():
+            stones = self.placed_stones
         self.cached_stone_structures.update("preview", {"args": (stones,)})
     
-    def update_not_marked_as_dead_structure(self):
-        stones = [stone for stone in self.placed_stones if not stone.is_marked()] + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones()
+    def update_territory_structure(self):
+        stones = [stone for stone in self.placed_stones if not stone.is_marked()] + self._get_list_of_0_or_1_suggestion_stones()
+        if self.is_the_game_over():
+            stones = self.placed_stones
         self.cached_stone_structures.update("territory", {"args": (stones,)})
             
     def update_suggestion_stone_status(self):
+        if self.fake_stone_mode[self.player_to_move]:
+            if "_hollow" not in self.suggestion_stone.color:
+                self.suggestion_stone.color += "_hollow"
+        else:
+            if "_hollow" in self.suggestion_stone.color:
+                self.suggestion_stone.color = self.suggestion_stone.color.replace("_hollow", "")
+        self.suggestion_stone.update_secondary_color()
+
         x, y = self.previous_move_action["x"], self.previous_move_action["y"]
         if self.is_the_game_over():
             self.dont_show_suggestion_stone = True
@@ -132,9 +143,9 @@ class GameState:
             self.dont_show_suggestion_stone = False
     
     def _get_active_fake_stones(self):
-        if self.fake_stone_mode[self.player_to_move]:
-            return self.fake_stones[self.player_to_move]
-        return []
+        if self.is_the_game_over():
+            return []
+        return self.fake_stones[self.player_to_move]
         
     def _get_list_of_0_or_1_suggestion_stones(self):
         if self.dont_show_suggestion_stone:
@@ -211,7 +222,14 @@ class GameState:
         if self.dont_show_suggestion_stone:
             return None, None
         
-        return self.cached_stone_structures.get_structure("for_snapping").calculate_snap_point(x, y, snap_color)
+        try:
+            return self.cached_stone_structures.get_structure("for_snapping").calculate_snap_point(x, y, snap_color)
+        except Exception as e:
+            stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones()        
+            if self.is_the_game_over():
+                stones = self.placed_stones
+            print(stones)
+            raise e
     
     def handle_move(self, action=None):
         self.previous_move_action = action or self.previous_move_action
@@ -222,30 +240,31 @@ class GameState:
             stones_for_librety_previes.append(self.suggestion_stone)
         
         self.update_preview_structure()
-        self.update_not_marked_as_dead_structure()
+        self.update_territory_structure()
 
         self._calculate_territory()
     
     def get_active_stones(self):
-        if self.is_the_game_over():
-            return self.placed_stones
-        if self.marking_dead_mode[self.player_to_move]:
-            return self.placed_stones
-        if not self.suggestion_stone_mode[self.player_to_move]:
-            return self.placed_stones
-        if self.dont_show_suggestion_stone:
-            return self.placed_stones + self.fake_stones[self.player_to_move]
-        if self.fake_stone_mode[self.player_to_move]:
-            if "_hollow" not in self.suggestion_stone.color:
-                self.suggestion_stone.color += "_hollow"
+        # if self.is_the_game_over():
+        #     return self.placed_stones
+        # if self.marking_dead_mode[self.player_to_move]:
+        #     return self.placed_stones
+        # if not self.suggestion_stone_mode[self.player_to_move]:
+        #     return self.placed_stones
+        # if self.dont_show_suggestion_stone:
+        #     return self.placed_stones + self.fake_stones[self.player_to_move]
+        # if self.fake_stone_mode[self.player_to_move]:
+        #     if "_hollow" not in self.suggestion_stone.color:
+        #         self.suggestion_stone.color += "_hollow"
 
-        elif "_hollow" in self.suggestion_stone.color:
-            self.suggestion_stone.color = self.suggestion_stone.color.replace("_hollow", "")
-        else:
-            pass
-        self.suggestion_stone.update_secondary_color()
+        # elif "_hollow" in self.suggestion_stone.color:
+        #     self.suggestion_stone.color = self.suggestion_stone.color.replace("_hollow", "")
+        # else:
+        #     pass
+        # self.suggestion_stone.update_secondary_color()
 
-        return self.placed_stones + [self.suggestion_stone] + self.fake_stones[self.player_to_move]
+        # return self.placed_stones + [self.suggestion_stone] + self.fake_stones[self.player_to_move]
+        return self.cached_stone_structures.get_structure("preview")._stones
 
     def handle_click(self, action):
         if self.is_the_game_over():
@@ -264,7 +283,7 @@ class GameState:
                     stone_of_player_color[stone_idx].secondary_color = get_opposite_color(stone_of_player_color[stone_idx].secondary_color, self.colors)
             
             self.actions_counter += 1
-            self.update_not_marked_as_dead_structure()
+            self.update_territory_structure()
             return
         
         if self.fake_stone_mode[self.player_to_move]:
@@ -279,6 +298,8 @@ class GameState:
                 
                 new_fake_stone = Stone(x=x, y=y, color=self.colors[self.player_to_move] + "_hollow")
                 self.fake_stones[self.player_to_move].append(new_fake_stone)
+            
+            self.dont_show_suggestion_stone = True
             
             self.update_structure_for_snapping()
             self.update_preview_structure()

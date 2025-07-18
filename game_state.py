@@ -99,7 +99,7 @@ class GameState:
         self.cached_stone_structures.update("placed_stones", {"args": (self.placed_stones,)})
     
     def update_structure_for_snapping(self):
-        stones = self.placed_stones[::]
+        stones = self.placed_stones + self.ko_stones
         if self.fake_stone_mode[self.player_to_move]:
             stones.extend(self.fake_stones[self.player_to_move])
 
@@ -108,7 +108,7 @@ class GameState:
         self.cached_stone_structures.update("for_snapping", {"args": (stones,)})
     
     def update_preview_structure(self):
-        stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones()        
+        stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones() + self.ko_stones    
         if self.is_the_game_over():
             stones = self.placed_stones
         self.cached_stone_structures.update("preview", {"args": (stones,)})
@@ -235,9 +235,9 @@ class GameState:
         self.previous_move_action = action or self.previous_move_action
         x, y = self._snap_stone(self.previous_move_action["x"], self.previous_move_action["y"])
         self.suggestion_stone = Stone(x, y, self.colors[self.player_to_move] + "_suggestion")
-        stones_for_librety_previes = self.placed_stones + self.ko_stones
+        stones_for_librety_preview = self.placed_stones + self.ko_stones
         if not self.dont_show_suggestion_stone:
-            stones_for_librety_previes.append(self.suggestion_stone)
+            stones_for_librety_preview.append(self.suggestion_stone)
         
         self.update_preview_structure()
         self.update_territory_structure()
@@ -320,6 +320,11 @@ class GameState:
 
         self.update_placed_stone_structure()
         killed_stones = self._kill_groups_of_color(opponent_color)
+        if len(killed_stones) == 1:
+            self.ko_stones = killed_stones
+            self.ko_stones[0].color += "_hollow"
+        else:
+            self.ko_stones = []
         self.update_placed_stone_structure()
         self._kill_groups_of_color(current_player_color)
         
@@ -370,15 +375,16 @@ class GameState:
 
     def _kill_groups_of_color(self, color):
         groups = split_stones_by_groups(self.placed_stones, self.config)
-        stones_to_kill = []
+        indexes_of_stones_to_kill = []
 
         for group in groups:
             if self.placed_stones[group[0]].color == color:
                 if not group_has_librety(group, self.cached_stone_structures.get_structure("placed_stones")):
                     # TODO: add KO rule etc
-                    stones_to_kill += group
-        self._kill_group(stones_to_kill)
-        return len(stones_to_kill)
+                    indexes_of_stones_to_kill += group
+        stones_to_kill = [self.placed_stones[ind] for ind in indexes_of_stones_to_kill]
+        self._kill_group(indexes_of_stones_to_kill)
+        return stones_to_kill
     
     def _kill_group(self, group):
         self.placed_stones = [s for i, s in enumerate(self.placed_stones) if i not in group]

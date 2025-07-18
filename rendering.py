@@ -101,7 +101,8 @@ def render_board(screen, game_state, config, transformation):
         if "_hollow" in color:
             color = color.replace("_hollow", "")
             polygon_exterior_thicked = shapely.intersection(polygon.exterior.buffer(config["line_width"]), polygon)
-            polygons_list2.append((remove_interior_if_it_exists(polygon_exterior_thicked), color))
+            if type(polygon_exterior_thicked) in [shapely.Polygon, shapely.MultiPolygon]:
+                polygons_list2.append((remove_interior_if_it_exists(polygon_exterior_thicked), color))
         else:
             polygons_list2.append((polygon, color))
     polygons_list = polygons_list2

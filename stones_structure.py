@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import copy
 import math 
 import random
 import shapely
@@ -168,3 +169,27 @@ class StoneStructure:
     
     def stone_has_librety(self, stone_ind):
         return bool(self._librety_intervals_in_angle_format[stone_ind])
+
+
+class MyCache:
+    def __init__(self, stone_radius, board):
+        self.stone_radius = stone_radius
+        self.board = board
+
+        self._init_params_dict = dict()
+        self.structures_dict = dict()
+    
+    def update(self, key, init_params):
+        for key2, value in self._init_params_dict.items():
+            if init_params == value:
+                structure = self.structures_dict[key2]
+                break
+        else:
+            structure = StoneStructure(*init_params.get("args", []), **init_params.get("kwargs", {}), stone_radius=self.stone_radius, board=self.board)
+
+        self._init_params_dict[key] = copy.deepcopy(init_params)
+        self.structures_dict[key] = structure
+    
+    def get_structure(self, key):
+        return self.structures_dict[key]
+

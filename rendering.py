@@ -93,6 +93,7 @@ def render_board(screen, game_state, config, transformation):
         elif type(polygon_or_multipolygon) == shapely.MultiPolygon:
             polygons_list.extend([(polygon, color) for polygon in polygon_or_multipolygon.geoms])
         else:
+            print(type(polygon_or_multipolygon))
             raise NotImplementedError
     
     polygons_list2 = []

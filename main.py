@@ -54,7 +54,7 @@ def main():
     
     while True:
         if os.environ.get('PROFILING', '0') == '1':
-            if len(game_state.placed_stones) == 50:
+            if len(game_state.placed_stones) == 200:
                 prof = pyinstrument.Profiler()
                 prof.start()
         

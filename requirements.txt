@@ -1,5 +1,5 @@
 # python=3.12 # это важно! при python3.9.6 не находит новые версии shapely и летит ошибка
-
+python-dotenv
 numpy==2.3.1
 pygame-ce==2.5.5
 pyinstrument==5.0.3

@@ -1,11 +1,11 @@
+import asyncio
 import sys
-import pygame
 import json
 import utils
 import copy 
 import os
-import asyncio
 
+import pygame
 from pygame.locals import *
 import pygame_gui
 import shapely

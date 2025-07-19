@@ -1,6 +1,20 @@
+from pathlib import Path
+from dotenv import set_key, load_dotenv
+import os
+
 import pygame
 import pygame_gui
-import os
+
+
+FILEPATH_VAR_NAME = "cogogame_last_picked_directory"
+def get_dir():
+    load_dotenv(override=True)
+    return os.getenv(FILEPATH_VAR_NAME) or os.getcwd()
+
+
+def set_dir(new_dir):
+    set_key(".env", FILEPATH_VAR_NAME, str(new_dir))
+
 
 
 class FileDailog:
@@ -17,6 +31,7 @@ class FileDailog:
                 print(f"Picked path: {event.text}")
                 if event.ui_element == self.active_dialog:
                     self.active_dialog = None
+                    set_dir(Path(event.text).parent)
                     return self.dialog_type, self.refine_pathname(event.text)
                     
             elif event.user_type == pygame_gui.UI_WINDOW_CLOSE:
@@ -46,7 +61,7 @@ class FileDailog:
                     rect=self.rect,
                     manager=self.manager,
                     window_title="Load File...",
-                    initial_file_path=os.getcwd(),
+                    initial_file_path=get_dir(),
                     allow_existing_files_only=True,
                     allowed_suffixes=[".cogogame"]
                 )
@@ -57,7 +72,7 @@ class FileDailog:
                 rect=self.rect,
                 manager=self.manager,
                 window_title="Save File...",
-                initial_file_path=os.getcwd(),
+                initial_file_path=get_dir(),
                 allow_existing_files_only=False,
                 allowed_suffixes=[".cogogame"]
             )

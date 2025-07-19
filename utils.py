@@ -94,222 +94,6 @@ def calculate_deltax_deltay(config):
 def distance_squared(x, y):
     return x ** 2 + y ** 2
 
-def stone_within_the_board(x, y, game_config):
-    """
-    Checks if the stone fits within the board.
-    """
-    r = game_config['stone_radius']
-    w = game_config['board_width']
-    h = game_config['board_height']
-    left = game_config['width'] / 2 - w / 2
-    right = game_config['width'] / 2 + w / 2
-    bottom = game_config['height'] / 2 - h / 2
-    top = game_config['height'] / 2 + h / 2
-    return (x - r >= left) and (x + r <= right) and (y - r >= bottom) and (y + r <= top)
-
-def stone_intersects_others(x0, y0, stones_list, game_config):
-    """
-    Checks if stone does not intersect other stones.
-    """
-    if not stone_within_the_board(x0, y0, game_config):
-        return True
-
-    r = game_config['stone_radius']
-    for stone in stones_list:
-        x1, y1 = stone.x, stone.y
-        if distance_squared(x1 - x0, y1 - y0) < 4 * r ** 2 - 10**(-5):
-            return True
-    return False
-
-def multiple_stones_intersect_others(new_stones_coords, stones_list, game_config):
-    """
-    For each of the coords, checks if stone does not intersect other stones.
-    NOTE: highly inefficient.
-    TODO: rewrite this.
-    """
-    return [stone_intersects_others(*s, stones_list, game_config) for s in new_stones_coords]
-
-def compute_double_touch_points(stones_list, game_config, snap_color=None):
-    """
-    Returns all possible placements where the point would touch two other stones simultaneously.
-    """
-    r = game_config['stone_radius']
-    doubletouch_points = []
-    for s1 in stones_list:
-        for s2 in stones_list:
-
-            if snap_color:
-                if s1.color != snap_color and s2.color != snap_color:
-                    continue
-
-            x1, y1 = s1.x, s1.y
-            x2, y2 = s2.x, s2.y
-
-            if x1 == x2 and y1 == y2:
-                continue
-
-            # v is the s1 -> s2 vector
-            vx = x2 - x1
-            vy = y2 - y1
-
-            if distance_squared(vx, vy) > 16 * r ** 2:
-                continue # no double touches
-            elif distance_squared(vx, vy) == 16 * r ** 2:
-                doubletouch_points.append((
-                    x1 + vx / 2, 
-                    y1 + vy / 2
-                ))
-            else:
-                # w is orthogonal to v
-                wx, wy = vy, -vx
-                
-                # w is normed to 1
-                w_norm = distance_squared(wx, wy)
-                wx /= np.sqrt(w_norm)
-                wy /= np.sqrt(w_norm)
-
-                # what do we need to add? sqrt(4r^2 - |v / 2|^2)
-                add_norm = 4 * r ** 2 - distance_squared(vx, vy) / 4
-                wx *= np.sqrt(add_norm)
-                wy *= np.sqrt(add_norm)
-
-                doubletouch_points.append((
-                    x1 + vx / 2 + wx,
-                    y1 + vy / 2 + wy,
-                ))
-                doubletouch_points.append((
-                    x1 + vx / 2 - wx,
-                    y1 + vy / 2 - wy,
-                ))
-
-    is_ok = multiple_stones_intersect_others(doubletouch_points, stones_list, game_config)
-
-    return [s for (s, intersect) in zip(doubletouch_points, is_ok) if not intersect]
-    
-def compute_border_touch_points(stones_list, game_config, snap_color=None):
-    r = game_config['stone_radius']
-    w = game_config['board_width']
-    h = game_config['board_height']
-    left = game_config['width'] / 2 - w / 2 + r
-    right = game_config['width'] / 2 + w / 2 - r
-    bottom = game_config['height'] / 2 - h / 2 + r
-    top = game_config['height'] / 2 + h / 2 - r
-    
-    bordertouch_points = []
-
-    for s in stones_list:
-
-        if s.color != snap_color:
-            continue
-
-        x, y = s.x, s.y
-
-        if x - left <= 2 * r:
-            add = 4 * r ** 2 - (x - left) ** 2
-            bordertouch_points.append((left, y + np.sqrt(add)))
-            bordertouch_points.append((left, y - np.sqrt(add)))
-        if right - x <= 2 * r:
-            add = 4 * r ** 2 - (right - x) ** 2
-            bordertouch_points.append((right, y + np.sqrt(add)))
-            bordertouch_points.append((right, y - np.sqrt(add)))
-        if y - bottom <= 2 * r:
-            add = 4 * r ** 2 - (y - bottom) ** 2
-            bordertouch_points.append((x + np.sqrt(add), bottom))
-            bordertouch_points.append((x - np.sqrt(add), bottom))
-        if top - y <= 2 * r:
-            add = 4 * r ** 2 - (top - y) ** 2
-            bordertouch_points.append((x + np.sqrt(add), top))
-            bordertouch_points.append((x - np.sqrt(add), top))
-    
-    is_ok = multiple_stones_intersect_others(bordertouch_points, stones_list, game_config)
-
-    return [s for (s, intersect) in zip(bordertouch_points, is_ok) if not intersect]
-
-def compute_perpendicular_touches(x0, y0, stones_list, game_config, snap_color=None):
-
-    x0 += np.random.randn() / 1000
-    y0 += np.random.randn() / 1000
-
-    r = game_config['stone_radius']
-    perpendicular_points = []
-
-    for s in stones_list:
-        x1, y1 = s.x, s.y
-
-        if snap_color:
-            if s.color != snap_color:
-                continue
-
-        # v is the s1 -> s2 vector
-        vx = x1 - x0
-        vy = y1 - y0
-        # v is normed to 1
-        v_norm = distance_squared(vx, vy)
-        vx /= np.sqrt(v_norm)
-        vy /= np.sqrt(v_norm)
-        
-        perpendicular_points.append((
-            x1 + vx * 2 * r,
-            y1 + vy * 2 * r
-        ))
-        perpendicular_points.append((
-            x1 - vx * 2 * r,
-            y1 - vy * 2 * r
-        ))
-
-    is_ok = multiple_stones_intersect_others(perpendicular_points, stones_list, game_config)
-
-    return [s for (s, intersect) in zip(perpendicular_points, is_ok) if not intersect]
-
-def compute_perpendicular_border_touches(x, y, stones_list, game_config, snap_color=None):
-    r = game_config['stone_radius']
-    w = game_config['board_width']
-    h = game_config['board_height']
-    left = game_config['width'] / 2 - w / 2 + r
-    right = game_config['width'] / 2 + w / 2 - r
-    bottom = game_config['height'] / 2 - h / 2 + r
-    top = game_config['height'] / 2 + h / 2 - r
-    
-    if snap_color:
-        return []
-
-    touches = [
-        (x, top),
-        (x, bottom),
-        (left, y),
-        (right, y),
-        (left, top),
-        (left, bottom),
-        (right, top),
-        (right, bottom)
-    ]
-
-    is_ok = multiple_stones_intersect_others(touches, stones_list, game_config)
-
-    return [s for (s, intersect) in zip(touches, is_ok) if not intersect]
-
-def compute_closest_snap_position(x, y, stones_list, game_config, snap_color=None, precomputed_doubletouch_points=None):
-    if precomputed_doubletouch_points:
-        dt_points = precomputed_doubletouch_points
-    else:
-        dt_points = compute_double_touch_points(stones_list, game_config, snap_color)
-
-    pd_points = compute_perpendicular_touches(x, y, stones_list, game_config, snap_color)
-    bt_points = compute_border_touch_points(stones_list, game_config, snap_color)
-    pbd_points = compute_perpendicular_border_touches(x, y, stones_list, game_config, snap_color)
-    possible_closest_points = dt_points + pd_points + bt_points + pbd_points
-
-    min_d = np.inf
-    xc = 0.0
-    yc = 0.0
-
-    for (x1, y1) in possible_closest_points:
-        d = distance_squared(x1 - x, y1 - y)
-        if d < min_d:
-            xc, yc = x1, y1
-            min_d = d
-        
-    return xc, yc
 
 def compute_group(stone_idx, stones_list, game_config):
     r = game_config['stone_radius']
@@ -345,6 +129,7 @@ def compute_group(stone_idx, stones_list, game_config):
 
     return group
 
+
 def split_stones_by_groups(stones_list, game_config):
     stones = stones_list
     if not stones:
@@ -361,6 +146,7 @@ def split_stones_by_groups(stones_list, game_config):
         groups.append(group)
 
     return groups
+
 
 def group_has_librety(group, stones_structure):
     return any(stones_structure.stone_has_librety(i) for i in group)
@@ -482,6 +268,7 @@ def point_in_polygon(x, y, poly):
             inside = not inside
     return inside
 
+
 def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2):
     dx = x2 - x1
     dy = y2 - y1
@@ -502,6 +289,7 @@ def circle_line_segment_intersection(x0, y0, r0, x1, y1, x2, y2):
             angle = math.atan2(y - y0, x - x0)
             intersections.append(angle)
     return intersections
+
 
 def find_uncovered_arcs(circle_C, list_of_circles, list_of_polygons, alpha, epsilon=1e-5):
     left_end, right_end = -math.pi, math.pi

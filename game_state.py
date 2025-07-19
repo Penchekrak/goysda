@@ -406,7 +406,7 @@ class GameState:
         for i in range(preview_structure._n):
             stone_i = preview_structure[i]
             for xy_start, xy_end in small_libreties_for_hightlighting[i]:
-                rt.append((shapely.Polygon([[stone_i.x, stone_i.y], xy_start, xy_end]), stone_i.color + "_small_librety"))
+                rt.append((shapely.Polygon([[stone_i.x, stone_i.y], xy_start, xy_end]), stone_i.color.replace("_hollow", "") + "_small_librety"))
         return rt
         
     def _get_list_of_stones_to_draw(self):

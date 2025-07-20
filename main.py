@@ -10,7 +10,7 @@ from pygame.locals import *
 import pygame_gui
 import shapely
 
-from game_state import GameState
+from game_history import GameStateHistory
 from rendering import render
 from handle_input import handle_input, ActionType
 from filedialog import FileDailog
@@ -22,7 +22,6 @@ if os.environ.get('PROFILING', '0') == '1':
     import pyinstrument
 
 def main():
-    actions_counter = 0
     config = {}
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
@@ -47,8 +46,7 @@ def main():
         manager=manager,
     )
 
-    game_state = GameState(config)
-    game_states_stack = [copy.deepcopy(game_state)]
+    game_history = GameStateHistory(config)
     if os.environ.get('PROFILING', '0') == '1':
         prof = None
     
@@ -67,15 +65,11 @@ def main():
 
             transformation.reset()
             if dialog_type_or_none == "open":
-                with open(picked_path_of_none, "r") as f:
-                    game_states_stack = [game_state.new_from_json(elem) for elem in json.load(f)]
-                    game_state = copy.deepcopy(game_states_stack[-1])
+                game_history.open_from_a_file(picked_path_of_none)
             
             elif dialog_type_or_none == "save":
-                with open(picked_path_of_none, "w") as f:
-                    json.dump([elem.to_json() for elem in game_states_stack], f)
+                game_history.save_to_file(picked_path_of_none)
             
-        
         for action in handle_input(pygame_events, transformation.screen_to_world):
             if action["action_type"] == ActionType.MOUSE_SCROLL:
                 transformation.update_self_zoom(action["x"], action["y"], config["zoom_speed"] * action["value"])
@@ -96,22 +90,9 @@ def main():
                     filedialog.open_file_dialog("open")
                 elif action["key"] == pygame.K_s:
                     filedialog.open_file_dialog("save")
-
-            if action["action_type"] == ActionType.UNDO:
-                if len(game_states_stack) >= 2:
-                    game_state = copy.deepcopy(game_states_stack[-2])
-                    game_states_stack.pop()
-                    actions_counter = game_state.actions_counter
-                else:
-                    print("Trying to undo empty position")
             
-            # Update.
             if not filedialog.is_active():
-                game_state.update(action)
-            
-            if actions_counter != game_state.actions_counter:
-                game_states_stack.append(copy.deepcopy(game_state))
-                actions_counter = game_state.actions_counter
+                game_history.update(action)
         
         if os.environ.get('PROFILING', '0') == '1':
             if prof:
@@ -119,10 +100,10 @@ def main():
                 prof.write_html('profile.html')
                 prof = None
         
-        game_state.update(None)
-        game_state.update_background()
+        game_history.update(None)
+        game_history.current_game_state.update_background()
 
-        render(screen, game_state, config, transformation)
+        render(screen, game_history.current_game_state, config, transformation)
         manager.update(1 / config['fps'])
 
         manager.draw_ui(screen)

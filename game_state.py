@@ -49,13 +49,18 @@ class PlacementsModes(Enum):
     
 
 class GameState:
-    def __init__(self, 
-            config,
-            placed_stones=[],
-            player_to_move=0,
-            passes_counter=0,
-            actions_counter=0
-        ):
+    def __init__(self, config, json=None):
+        if json is not None:
+            placed_stones = [Stone(**stone_dict) for stone_dict in json["stones"]]
+            actions_counter=json["actions_counter"]
+            player_to_move = json.get("player_to_move", json["actions_counter"] % 2)
+            passes_counter= json["passes_counter"]
+        else:
+            placed_stones = []
+            actions_counter = 0
+            player_to_move = 0
+            passes_counter = 0
+
         self.placed_stones = placed_stones
         self.player_to_move = player_to_move
         self.passes_counter = passes_counter
@@ -99,22 +104,25 @@ class GameState:
         self.cached_stone_structures.update("placed_stones", {"args": (self.placed_stones,)})
     
     def update_structure_for_snapping(self):
-        stones = self.placed_stones + self.ko_stones
-        if self.fake_stone_mode[self.player_to_move]:
-            stones.extend(self.fake_stones[self.player_to_move])
+        stones = remove_duplicate_stones(self.placed_stones + self._get_active_fake_stones())
 
         if self.is_the_game_over():
             stones = self.placed_stones
         self.cached_stone_structures.update("for_snapping", {"args": (stones,)})
     
     def update_preview_structure(self):
-        stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones() + self.ko_stones    
+        stones = remove_duplicate_stones(self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones())
         if self.is_the_game_over():
             stones = self.placed_stones
-        self.cached_stone_structures.update("preview", {"args": (stones,)})
+        try:
+            self.cached_stone_structures.update("preview", {"args": (stones,)})
+        except Exception as e:
+            print(f"{self.player_to_move = }\n{self.previous_move_action['x'] = }, {self.previous_move_action['y'] = }\n{self.placed_stones = }\n{self._get_list_of_0_or_1_suggestion_stones() = }\n{self._get_active_fake_stones() = }\n{self.ko_stones = }\n")
+            raise e
+
     
     def update_territory_structure(self):
-        stones = [stone for stone in self.placed_stones if not stone.is_marked()] + self._get_list_of_0_or_1_suggestion_stones()
+        stones = remove_duplicate_stones([stone for stone in self.placed_stones if not stone.is_marked()] + self._get_list_of_0_or_1_suggestion_stones())
         if self.is_the_game_over():
             stones = self.placed_stones
         self.cached_stone_structures.update("territory", {"args": (stones,)})
@@ -157,13 +165,15 @@ class GameState:
     
     def update(self, action):
         self.update_suggestion_stone_status()
-        
         if action is None:
             self.handle_move()
             return
 
         if "x" in action:
             action["x"], action["y"] = project_point_onto_polygon(self.board_inner, shapely.Point(action["x"], action["y"])).coords[0]
+            self.previous_move_action = action or self.previous_move_action
+        
+        self.update_suggestion_stone_status()
         if action["action_type"] == ActionType.MOUSE_DOWN_LEFT:
             self.handle_click(action)
         
@@ -232,12 +242,8 @@ class GameState:
             raise e
     
     def handle_move(self, action=None):
-        self.previous_move_action = action or self.previous_move_action
         x, y = self._snap_stone(self.previous_move_action["x"], self.previous_move_action["y"])
         self.suggestion_stone = Stone(x, y, self.colors[self.player_to_move] + "_suggestion")
-        stones_for_librety_preview = self.placed_stones + self.ko_stones
-        if not self.dont_show_suggestion_stone:
-            stones_for_librety_preview.append(self.suggestion_stone)
         
         self.update_preview_structure()
         self.update_territory_structure()
@@ -264,7 +270,7 @@ class GameState:
         # self.suggestion_stone.update_secondary_color()
 
         # return self.placed_stones + [self.suggestion_stone] + self.fake_stones[self.player_to_move]
-        return self.cached_stone_structures.get_structure("preview")._stones
+        return self.cached_stone_structures.get_structure("preview").get_stones()
 
     def handle_click(self, action):
         if self.is_the_game_over():
@@ -355,16 +361,6 @@ class GameState:
             "player_to_move": self.player_to_move,
             "passes_counter": self.passes_counter,
         }
-    
-    def new_from_json(self, json):
-        new_gamestate = self.__class__( 
-            config=self.config, 
-            placed_stones=[Stone(**stone_dict) for stone_dict in json["stones"]],
-            actions_counter=json["actions_counter"],
-            player_to_move = json.get("player_to_move", json["actions_counter"] % 2),
-            passes_counter= json["passes_counter"],
-        )
-        return new_gamestate
 
     def get_list_of_shapes_to_draw(self):
         self.update(action=None)
@@ -391,12 +387,9 @@ class GameState:
     
     def _get_list_of_territory_polygons(self):
         self._calculate_territory()
-        polygon_colors = []
-        for stone in self.not_marked_as_dead_stones:
-            polygon_colors.append(stone.color + "_territory")
         
-        alive_voronoi_polygons = self.cached_stone_structures.get_structure("territory").get_voronoi_polygons()
-        rt = list(zip(alive_voronoi_polygons, polygon_colors)) 
+        territory_structure = self.cached_stone_structures.get_structure("territory")
+        rt = list(zip(territory_structure.get_voronoi_polygons(), [elem.color.replace("_hollow", "") + "_territory" for elem in territory_structure.get_stones()])) 
         return rt
 
     def _get_list_of_librety_highliters(self):

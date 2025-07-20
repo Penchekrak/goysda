@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 from functools import lru_cache
 
 import numpy as np
@@ -400,3 +401,19 @@ def thicken_a_line_segment(x0, y0, x1, y1, width):
         [x1 - perp_dir[0], y1 - perp_dir[1]],
         [x0 - perp_dir[0], y0 - perp_dir[1]],
     ]
+
+
+def get_readable_datetime():    
+    return datetime.now().strftime("%B %d, %Y at %I:%M:%S %p").strip()
+
+
+def get_readable_filepath():
+    return f"SuGo game on {get_readable_datetime()}.sugo"
+
+
+def remove_duplicate_stones(stones):
+    """ If several stones placed on (x, y) it removes all except the first one """
+    d = dict()
+    for stone in stones[::-1]:
+        d[(stone.x, stone.y)] = stone
+    return list(d.values())

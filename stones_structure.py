@@ -27,6 +27,9 @@ class StoneStructure:
         self._recalculate_delone_graph()
         self._calculate_librety_intervals()
     
+    def get_stones(self):
+        return self._stones
+    
     def _recalculate_delone_graph(self):
         points = shapely.MultiPoint([[stone.x + 1e-15 * random.random(), stone.y + 1e-15*random.random()] for stone in self._stones]) # 1e-15 is unfortunately needed, due to the bug underneath
         point_to_index = {point: i for i, point in enumerate(points.geoms)}

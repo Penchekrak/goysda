@@ -1,12 +1,14 @@
-from pathlib import Path
 from dotenv import set_key, load_dotenv
+from pathlib import Path
 import os
 
 import pygame
 import pygame_gui
 
+from utils import get_readable_filepath
 
-FILEPATH_VAR_NAME = "cogogame_last_picked_directory"
+
+FILEPATH_VAR_NAME = "sugo_last_picked_directory"
 def get_dir():
     load_dotenv(override=True)
     return os.getenv(FILEPATH_VAR_NAME) or os.getcwd()
@@ -42,10 +44,10 @@ class FileDailog:
     def refine_pathname(self, path):
         if self.dialog_type != "save":
             return path
-        if path.endswith(".cogogame"):
+        if path.endswith(".sugo"):
             return path
         
-        return path + ".cogogame"
+        return path + ".sugo"
     
     def is_active(self):
         return self.active_dialog is not None
@@ -63,7 +65,7 @@ class FileDailog:
                     window_title="Load File...",
                     initial_file_path=get_dir(),
                     allow_existing_files_only=True,
-                    allowed_suffixes=[".cogogame"]
+                    allowed_suffixes=[".sugo"]
                 )
             self.dialog_type = "open"  
             
@@ -72,8 +74,8 @@ class FileDailog:
                 rect=self.rect,
                 manager=self.manager,
                 window_title="Save File...",
-                initial_file_path=get_dir(),
+                initial_file_path=str(Path(get_dir()) / get_readable_filepath()),
                 allow_existing_files_only=False,
-                allowed_suffixes=[".cogogame"]
+                allowed_suffixes=[".sugo"]
             )
             self.dialog_type = "save" 

@@ -34,6 +34,8 @@ def main():
     
     fpsClock = pygame.time.Clock()
     
+    game_history = GameStateHistory(config)
+    
     screen = pygame.display.set_mode((config['width'], config['height']))
     pygame.display.set_caption(config['window title'])
 
@@ -46,7 +48,6 @@ def main():
         manager=manager,
     )
 
-    game_history = GameStateHistory(config)
     if os.environ.get('PROFILING', '0') == '1':
         prof = None
     

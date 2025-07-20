@@ -488,23 +488,25 @@ class GameState:
 
     def get_info(self) -> Dict[str, str]:
         player_name = self.colors[self.player_to_move]
+        territory_info = {"Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})"}
         if self.is_the_game_over():
             if self.territory[0] >= self.territory[1] + 1:
-                turn_info = {"Winner": self.colors[0]}
+                rt = {"Winner": self.colors[0]}
             elif self.territory[1] >= self.territory[0] + 1:
-                turn_info = {"Winner": self.colors[1]}
+                rt = {"Winner": self.colors[1]}
             else:
-                turn_info = {"Result": "tie"}
-        else:
-            turn_info = {"Player": player_name}
-        
-        return turn_info | {
-            "Player placement mode (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
-            "Player territory mode           (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
-            "Player ghost stone mode         (togle on G)": ["Hide ghost suggestion stone", "Show ghost suggestion stone"][self.suggestion_stone_mode[self.player_to_move]],
-            "Player click mode               (togle on X)": ["Click means placing stones", "Click means marking dead groups"][self.marking_dead_mode[self.player_to_move]],
-            "Black vs white": f"{self.territory[0]} - {self.territory[1]} ({round(self.territory[0] - self.territory[1], 5)})",
+                rt = {"Result": "tie"}
+            return rt | territory_info
+                
+        return {
+            "Player": player_name
+        } | territory_info | {
+            "Player placement mode    (toggle on W, 1, 2, 3)": f'{[elem.value for elem in PlacementsModes][self.placement_modes[self.player_to_move]]}',
+            "Player territory mode              (togle on T)": ["Don't show territory", "Show territory"][self.territory_mode[self.player_to_move]],
+            "Player ghost stone mode            (togle on G)": ["Hide ghost suggestion stone", "Show ghost suggestion stone"][self.suggestion_stone_mode[self.player_to_move]],
+            "Player fake stones mode            (togle on F)": ["Off", "On"][self.fake_stone_mode[self.player_to_move]],
+            "Player marking groups as dead mode (togle on X)": ["Click means placing stones", "Click means marking dead groups"][self.marking_dead_mode[self.player_to_move]],
             # f"Toggle background on button ({self.background_to_render_list[self.background_to_render_index]})": "B",
             # f"Toggle board on button ({self.board_to_render_list[self.board_to_render_index]})": "N",
-            # "For quit use": "Q",
+            "For quit use": "Q",
         }

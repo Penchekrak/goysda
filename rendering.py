@@ -126,7 +126,7 @@ def draw_info_panel(screen, game_state, config):
     
     panel_height = (len(info) * line_height) + (2 * padding)
     panel_x = (config['width'] - panel_width) / 2
-    panel_y = config['height'] - panel_height - 10
+    panel_y = config['height'] - config["bottom_panel_width"] - 10
     
     panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
     panel_surface.fill((0, 0, 0, 150))

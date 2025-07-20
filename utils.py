@@ -20,10 +20,10 @@ colors = dict(
     dark_grey=(69, 69, 69),
 )
 
-# board_size = r = 720
-board_size = r = 600
+board_size = r = 750
+# board_size = r = 640
 
-world_size = 950
+world_size = 980
 
 default_config = {
     'width': world_size,
@@ -71,6 +71,7 @@ default_config = {
     "window title": 'Sugo - continious Go',
     'minimal_librety_angle_to_hightlight': math.pi / 180 * 20,
     "komi": 6.5,
+    "bottom_panel_width": 180,
 }
 
 def update_colors(config):
@@ -90,7 +91,7 @@ def update_colors(config):
 
 
 def calculate_deltax_deltay(config):
-    return (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height']) / 2
+    return (config['width'] - config['board_width']) / 2, (config['height'] - config['board_height'] - config["bottom_panel_width"]) / 2
 
 
 def distance_squared(x, y):

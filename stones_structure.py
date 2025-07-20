@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import lru_cache
 
 import copy
 import math 
@@ -136,6 +137,7 @@ class StoneStructure:
                 return True        
         return False
     
+    @lru_cache(maxsize=2)
     def calculate_snap_point(self, x, y, color=None):
         candidate_points = []
         

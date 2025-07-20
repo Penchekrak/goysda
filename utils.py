@@ -63,6 +63,7 @@ default_config = {
     'black_suggestion_small_librety_color': (135, 40, 40),
     'board_border_color': (128, 128, 128),
     'board_blur_radius': 30,
+    "grey_color": (128, 128, 128),
     "border_alpha": 0.5,
     "default_alpha": 0.8,
     'zoom_speed': 0.1,
@@ -195,6 +196,24 @@ def get_cross_polygon(center_x, center_y, cross_height, cross_width):
         [x, y - w],
         [x - h, y - w - h],
         [x - w - h, y - h],
+    ])
+
+
+
+def get_k_polygon(center_x, center_y, radius, width):
+    x, y, r, w = center_x, center_y, radius, width
+    return shapely.Polygon([
+        [x - w / 2, y + r],
+        [x + w, y + r],
+        [x + w, y + w],
+        [x + r, y + r],
+        [x + r + w, y + r - w],
+        [x + 2 * w, y],
+        [x + r + w, y - r + w],
+        [x + r, y - r],
+        [x + w, y - w],
+        [x + w, y - r],
+        [x - w / 2, y - r],
     ])
 
 

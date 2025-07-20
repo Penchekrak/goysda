@@ -27,7 +27,10 @@ class GameStateHistory:
         
         actions_counter = self.current_game_state.actions_counter
         self.current_game_state.update(action)
-        if self.current_game_state.actions_counter != actions_counter:
+        if not self.current_game_state.is_position_possible:
+            self.current_game_state = GameState(self.config, self.history[-1])
+            print("Impossible move! The move has been undone")
+        elif self.current_game_state.actions_counter != actions_counter:
             self.history.append(self.current_game_state.to_json())
     
     def save_to_file(self, filepath=None):

@@ -15,11 +15,13 @@ class Stone:
     y: int
     color: str
     secondary_color: str
+    is_ko_attacker: bool
 
-    def __init__(self, x, y, color, secondary_color=None):
+    def __init__(self, x, y, color, secondary_color=None, is_ko_attacker=False):
         self.x = x
         self.y = y
         self.color = color
+        self.is_ko_attacker = is_ko_attacker
         self.update_secondary_color(secondary_color or color)
     
     def distance_squared(self, other):
@@ -32,7 +34,7 @@ class Stone:
         return self.secondary_color != self.color
     
     def _asdict(self):
-        return {"x": self.x, "y": self.y, "color": self.color, "secondary_color": self.secondary_color}
+        return {"x": self.x, "y": self.y, "color": self.color, "secondary_color": self.secondary_color, "is_ko_attacker": self.is_ko_attacker}
     
     def __str__(self):
         return f"{self.__class__.__name__}(" + ", ".join(f"{key} = {value}" for key, value in self._asdict().items()) + ")"
@@ -60,7 +62,8 @@ class GameState:
             actions_counter = 0
             player_to_move = 0
             passes_counter = 0
-
+        
+        self.is_position_possible = True
         self.placed_stones = placed_stones
         self.player_to_move = player_to_move
         self.passes_counter = passes_counter
@@ -119,7 +122,6 @@ class GameState:
         except Exception as e:
             print(f"{self.player_to_move = }\n{self.previous_move_action['x'] = }, {self.previous_move_action['y'] = }\n{self.placed_stones = }\n{self._get_list_of_0_or_1_suggestion_stones() = }\n{self._get_active_fake_stones() = }\n{self.ko_stones = }\n")
             raise e
-
     
     def update_territory_structure(self):
         stones = remove_duplicate_stones([stone for stone in self.placed_stones if not stone.is_marked()] + self._get_list_of_0_or_1_suggestion_stones())
@@ -325,15 +327,20 @@ class GameState:
         opponent_color = self.colors[(self.player_to_move + 1) % 2]
 
         self.update_placed_stone_structure()
-        killed_stones = self._kill_groups_of_color(opponent_color)
-        if len(killed_stones) == 1:
-            self.ko_stones = killed_stones
-            self.ko_stones[0].color += "_hollow"
-        else:
-            self.ko_stones = []
+        killed_opponent_stones = self._kill_groups_of_color(opponent_color)
+        for stone in self.placed_stones:
+            stone.is_ko_attacker = False
+        if len(killed_opponent_stones) == 1:
+            if killed_opponent_stones[0].is_ko_attacker:
+                self.is_position_possible = False
+            else:
+                self.placed_stones[-1].is_ko_attacker = True
+
         self.update_placed_stone_structure()
-        self._kill_groups_of_color(current_player_color)
-        
+        killed_player_stones = self._kill_groups_of_color(current_player_color)
+        if new_stone in killed_player_stones:
+            self.is_position_possible = False
+                    
         self.pass_the_turn()
         self.update_secondary_colors()
 
@@ -378,7 +385,7 @@ class GameState:
                 if not group_has_librety(group, self.cached_stone_structures.get_structure("placed_stones")):
                     # TODO: add KO rule etc
                     indexes_of_stones_to_kill += group
-        stones_to_kill = [self.placed_stones[ind] for ind in indexes_of_stones_to_kill]
+        stones_to_kill = [self.cached_stone_structures.get_structure("placed_stones")[i] for i in indexes_of_stones_to_kill]
         self._kill_group(indexes_of_stones_to_kill)
         return stones_to_kill
     
@@ -409,11 +416,15 @@ class GameState:
             rt.append((shapely.Point(x, y).buffer(self.stone_radius), stone.color))
             if stone.is_marked():
                 rt.append((get_cross_polygon(x, y, (2**0.5) * self.stone_radius / 8, self.stone_radius / 16), stone.secondary_color))
+            
+            if stone.is_ko_attacker:
+                rt.append((get_k_polygon(x, y, self.stone_radius / 2, self.stone_radius / 10), "grey")) # , self.stone_radius / 10, self.stone_radius / 2 ** 1.5
         if self.marking_dead_mode[self.player_to_move]:
             if self.previous_move_action:
                 x, y = self.previous_move_action["x"], self.previous_move_action["y"]
                 rt.append((get_cross_polygon(x, y, (2**0.5) * self.stone_radius / 8, self.stone_radius / 16), get_opposite_color(self.suggestion_stone.color, self.colors)))
         
+
         return rt            
     
     def _get_list_of_connections(self):

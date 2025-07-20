@@ -20,8 +20,8 @@ colors = dict(
     dark_grey=(69, 69, 69),
 )
 
-board_size = r = 720
-# board_size = 600
+# board_size = r = 720
+board_size = r = 600
 
 world_size = 950
 
@@ -32,11 +32,11 @@ default_config = {
     'board_width': board_size,
     'board_height': board_size,
     'board_polygon':  [[0, 0], [board_size, 0], [board_size, board_size], [0, board_size]], 
-    #'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
+    # 'board_polygon':  [[100, 0], [board_size, 0], [board_size, board_size], [0, board_size], [0, 100], [100, 100]],
     # 'board_polygon':  [[0, r / 2], [r/4, r * (1 - math.sqrt(3) / 2) / 2], [3 * r/4, r * (1 - math.sqrt(3) / 2) / 2], [r, r / 2], [3 * r / 4 , r * (1 + math.sqrt(3) / 2) / 2], [r / 4 , r * (1 + math.sqrt(3) / 2) / 2]], 
     'board_color': (204, 102, 0),
     'cloud_scale': 0.25,
-    'stone_radius': board_size / 19 / 2,
+    'stone_radius': board_size / 13 / 2,
     'cloud_count': 10,
     'cloud_bulkiness': 10,
     'cloud_bulk_radius': 10,
@@ -202,8 +202,9 @@ def get_cross_polygon(center_x, center_y, cross_height, cross_width):
 
 def get_k_polygon(center_x, center_y, radius, width):
     x, y, r, w = center_x, center_y, radius, width
+    x -= r/2
     return shapely.Polygon([
-        [x - w / 2, y + r],
+        [x - w * (2 ** 0.5 - 1), y + r],
         [x + w, y + r],
         [x + w, y + w],
         [x + r, y + r],
@@ -213,7 +214,7 @@ def get_k_polygon(center_x, center_y, radius, width):
         [x + r, y - r],
         [x + w, y - w],
         [x + w, y - r],
-        [x - w / 2, y - r],
+        [x - w * (2 ** 0.5 - 1), y - r],
     ])
 
 

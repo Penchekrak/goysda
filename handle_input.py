@@ -74,7 +74,6 @@ def handle_input(events, xy_transformation_func):
                     'y': event.pos[1],
                     'value': -1,
                 }
-        
         elif event.type == MOUSEBUTTONUP:
             # Отпускание кнопки мыши
             if event.button == 1:  # левая кнопка
@@ -86,7 +85,7 @@ def handle_input(events, xy_transformation_func):
                 }
             elif event.button == 3:  # правая кнопка
                 action = {
-                    'action_type': ActionType.MOUSE_DOWN_RIGHT,
+                    'action_type': ActionType.MOUSE_UP_RIGHT,
                     'button': 'right',
                     'x': event.pos[0],
                     'y': event.pos[1]

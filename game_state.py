@@ -176,8 +176,8 @@ class GameState:
             self.previous_move_action = action or self.previous_move_action
         
         self.update_suggestion_stone_status()
-        if action["action_type"] == ActionType.MOUSE_DOWN_LEFT:
-            self.handle_click(action)
+        if action["action_type"] in [ActionType.MOUSE_DOWN_LEFT, ActionType.MOUSE_DOWN_RIGHT]:
+            self.handle_click(action, action["action_type"] == ActionType.MOUSE_DOWN_RIGHT)
         
         if action["action_type"] == ActionType.MOUSE_MOTION:
             self.handle_move(action)
@@ -274,7 +274,7 @@ class GameState:
         # return self.placed_stones + [self.suggestion_stone] + self.fake_stones[self.player_to_move]
         return self.cached_stone_structures.get_structure("preview").get_stones()
 
-    def handle_click(self, action):
+    def handle_click(self, action, is_right_button_pressed=False):
         if self.is_the_game_over():
             return 
         
@@ -304,7 +304,10 @@ class GameState:
                 if x is None:
                     return
                 
-                new_fake_stone = Stone(x=x, y=y, color=self.colors[self.player_to_move] + "_hollow")
+                color = self.colors[self.player_to_move] + "_hollow"
+                if is_right_button_pressed:
+                    color = get_opposite_color(color, self.colors)
+                new_fake_stone = Stone(x=x, y=y, color=color)
                 self.fake_stones[self.player_to_move].append(new_fake_stone)
             
             self.dont_show_suggestion_stone = True

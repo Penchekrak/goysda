@@ -23,6 +23,7 @@ if os.environ.get('PROFILING', '0') == '1':
 
 def main():
     config = utils.default_config
+    new_config = {}
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
         with open(config_path, 'r') as f:

@@ -22,12 +22,12 @@ if os.environ.get('PROFILING', '0') == '1':
     import pyinstrument
 
 def main():
-    config = {}
+    config = utils.default_config
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
         with open(config_path, 'r') as f:
-            config = json.load(f)
-    config.update(utils.default_config)
+            new_config = json.load(f)
+    config.update(new_config)
     utils.update_colors(config=config)
 
     pygame.init()

@@ -153,11 +153,14 @@
             window.addEventListener('keyup', handleKeyUp);
         }
 
-        function handleMouseDown(e) {
+        function get_xy(e) {
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
+            return [e.clientX - rect.left, e.clientY - rect.top]
+        }
+
+        function handleMouseDown(e) {
+            let x, y;
+            [x, y] = get_xy(e)
             let actionType = 'mouse_down_left';
             if (e.button === 2) actionType = 'mouse_down_right';
             
@@ -169,9 +172,9 @@
         }
 
         function handleMouseMove(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            let x, y;
+            [x, y] = get_xy(e)
+            console.log("x = ", x, "y = ", y)
 
             socket.send(JSON.stringify({
                 action_type: 'mouse_move',
@@ -184,11 +187,13 @@
         }
 
         function handleMouseWheel(e) {
+            let x, y;
+            [x, y] = get_xy(e);
             e.preventDefault();
             socket.send(JSON.stringify({
                 action_type: 'mouse_scroll',
-                x: e.clientX,
-                y: e.clientY,
+                x: x,
+                y: y,
                 value: e.deltaY > 0 ? -1 : 1
             }));
         }

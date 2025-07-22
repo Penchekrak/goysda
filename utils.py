@@ -20,8 +20,8 @@ colors = dict(
     dark_grey=(69, 69, 69),
 )
 
-board_size = r = 750
-# board_size = r = 640
+# board_size = r = 750
+board_size = r = 640
 
 world_size = 980
 

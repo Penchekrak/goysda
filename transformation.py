@@ -17,6 +17,13 @@ class Transformation:
 
         self._init_pararms = {"offset_x": offset_x, "offset_y": offset_y, "log_scale": log_scale, "log_scale_min": log_scale_min, "log_scale_max": log_scale_max, "boundary_polygon": boundary_polygon}
     
+    def to_json(self):
+        return {"offset_x": self._offset_x, "offset_y": self._offset_y, "log_scale": self._log_scale}
+    
+    @staticmethod
+    def from_json(json, config):
+        return Transformation(json["offset_x"], json["offset_y"], json["log_scale"], config["board_polygon"])
+
     def reset(self):
         self.__init__(**self._init_pararms)
 

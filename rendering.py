@@ -86,28 +86,8 @@ def render_board(screen, game_state, config, transformation):
     # corner1, corner3 = corner_1_and_3
 
     # base_surface.blit(pygame.transform.scale(board_display, (corner3[0] - corner1[0], corner3[1] - corner1[1])), corner1)
-    polygons_list = []
-    for polygon_or_multipolygon, color in game_state.get_list_of_shapes_to_draw():
-        if type(polygon_or_multipolygon) == shapely.Polygon:
-            polygons_list.append((polygon_or_multipolygon, color))
-        elif type(polygon_or_multipolygon) == shapely.MultiPolygon:
-            polygons_list.extend([(polygon, color) for polygon in polygon_or_multipolygon.geoms])
-        else:
-            print(type(polygon_or_multipolygon))
-            raise NotImplementedError
     
-    polygons_list2 = []
-    for polygon, color in polygons_list:
-        if "_hollow" in color:
-            color = color.replace("_hollow", "")
-            polygon_exterior_thicked = shapely.intersection(polygon.exterior.buffer(config["line_width"]), polygon)
-            if type(polygon_exterior_thicked) in [shapely.Polygon, shapely.MultiPolygon]:
-                polygons_list2.append((remove_interior_if_it_exists(polygon_exterior_thicked), color))
-        else:
-            polygons_list2.append((polygon, color))
-    polygons_list = polygons_list2
-
-    for polygon, color in polygons_list:
+    for polygon, color in game_state.get_list_of_shapes_to_draw():
         if len(polygon.exterior.coords) > 2:
             tranformed_coords = [transformation.world_to_screen(elem[0], elem[1]) for elem in polygon.exterior.coords] # 
             pygame.draw.polygon(base_surface, colors[color], [[tcoord_x - delta_x, tcoord_y - delta_y] for tcoord_x, tcoord_y in tranformed_coords])

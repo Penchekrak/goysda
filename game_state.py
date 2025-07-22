@@ -196,6 +196,10 @@ class GameState:
     
     def pass_the_turn(self):
         self.player_to_move = (self.player_to_move + 1) % 2
+        self.update_placed_stone_structure()
+        self.update_preview_structure()
+        self.update_structure_for_snapping()
+        self.update_territory_structure()
         
     def handle_keydown(self, action):
         keyboard_digits = [pygame.K_1, pygame.K_2, pygame.K_3]
@@ -236,11 +240,8 @@ class GameState:
         
         try:
             return self.cached_stone_structures.get_structure("for_snapping").calculate_snap_point(x, y, snap_color)
-        except Exception as e:
-            stones = self.placed_stones + self._get_list_of_0_or_1_suggestion_stones() + self._get_active_fake_stones()        
-            if self.is_the_game_over():
-                stones = self.placed_stones
-            print(stones)
+        except Exception as e:  
+            print(f"{self.cached_stone_structures.get_structure("for_snapping").get_stones() = }")
             raise e
     
     def handle_move(self, action=None):
@@ -373,6 +374,28 @@ class GameState:
         }
 
     def get_list_of_shapes_to_draw(self):
+        polygons_list = []
+        for polygon_or_multipolygon, color in self._get_list_of_shapes_to_draw():
+            if type(polygon_or_multipolygon) == shapely.Polygon:
+                polygons_list.append((polygon_or_multipolygon, color))
+            elif type(polygon_or_multipolygon) == shapely.MultiPolygon:
+                polygons_list.extend([(polygon, color) for polygon in polygon_or_multipolygon.geoms])
+            else:
+                print(type(polygon_or_multipolygon))
+                raise NotImplementedError
+        
+        polygons_list2 = []
+        for polygon, color in polygons_list:
+            if "_hollow" in color:
+                color = color.replace("_hollow", "")
+                polygon_exterior_thicked = shapely.intersection(polygon.exterior.buffer(self.config["line_width"]), polygon)
+                if type(polygon_exterior_thicked) in [shapely.Polygon, shapely.MultiPolygon]:
+                    polygons_list2.append((remove_interior_if_it_exists(polygon_exterior_thicked), color))
+            else:
+                polygons_list2.append((polygon, color))
+        return polygons_list2
+    
+    def _get_list_of_shapes_to_draw(self):
         self.update(action=None)
         if self.territory_mode[self.player_to_move]:
             return self._get_list_of_territory_polygons() + self._get_list_of_stones_to_draw()
@@ -409,7 +432,7 @@ class GameState:
         for i in range(preview_structure._n):
             stone_i = preview_structure[i]
             for xy_start, xy_end in small_libreties_for_hightlighting[i]:
-                rt.append((shapely.Polygon([[stone_i.x, stone_i.y], xy_start, xy_end]), stone_i.color.replace("_hollow", "") + "_small_librety"))
+                rt.append((shapely.Polygon([[stone_i.x, stone_i.y], xy_start, xy_end]).buffer(self.stone_radius / 20), stone_i.color.replace("_hollow", "") + "_small_librety"))
         return rt
         
     def _get_list_of_stones_to_draw(self):
@@ -508,5 +531,4 @@ class GameState:
             "Player marking groups as dead mode (togle on X)": ["Click means placing stones", "Click means marking dead groups"][self.marking_dead_mode[self.player_to_move]],
             # f"Toggle background on button ({self.background_to_render_list[self.background_to_render_index]})": "B",
             # f"Toggle board on button ({self.board_to_render_list[self.board_to_render_index]})": "N",
-            "For quit use": "Q",
         }

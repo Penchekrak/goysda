@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Go Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB;}
+        canvas {
+            display: block;
+            position: fixed;
+            left: 50%;
+            transform: translateX(-25%);
+            /* max-height: 70%; */
+        }
+        #info-panel {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            max-width: 90%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .info-table {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            justify-items: start;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .info-key {
+            text-align: left;
+            font-weight: bold;
+            opacity: 0.9;
+        }
+
+        .info-value {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+        }
+        #saveBtn, #loadBtn {
+            display: flex;
+            position: fixed;
+            left: 50%;
+
+            padding: 8px 15px;
+            margin-right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #saveBtn {
+            transform: translateX(-50%);
+        }
+        #loadBtn {
+            transform: translateX(+50%);
+        }
+        
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="info-panel"></div>
+    <!-- Add these buttons below the canvas -->
+    <div id="controls">
+        <button id="saveBtn">Save Game</button>
+        <button id="loadBtn">Load Game</button>
+    </div>
+    
+    <script>
+        let colors = {'white': [255, 255, 255], 'black': [0, 0, 0], 'red': [255, 0, 0], 'green': [0, 255, 0], 'blue': [0, 0, 255], 'light_blue': [193, 226, 230], 'dark_blue': [85, 85, 139], 'light_grey': [151, 151, 151], 'dark_grey': [69, 69, 69], 'board': [204.0, 102.0, 0.0], 'white_territory': [193.6, 173.20000000000002, 152.8], 'white_suggestion_territory': [185.6, 165.20000000000002, 144.8], 'white_small_librety': [216.0, 110.0, 117.60000000000001], 'white_suggestion_small_librety': [196.79999999999998, 114.0, 112.80000000000001], 'black_territory': [88.0, 67.6, 47.2], 'black_suggestion_territory': [96.0, 75.6, 55.2], 'white_connection': [228.79999999999998, 208.4, 188.0], 'white_border': [202.5, 151.5, 100.5], 'white_connection_suggestion': [212.79999999999998, 192.4, 172.0], 'white_suggestion': [201.6, 181.20000000000002, 160.8], 'white_suggestion_border': [177.5, 126.5, 75.5], 'black_connection': [56.79999999999999, 36.39999999999999, 16.0], 'black_border': [127.0, 76.0, 25.0], 'black_connection_suggestion': [64.79999999999998, 44.39999999999999, 24.0], 'black_suggestion': [72.79999999999998, 52.39999999999999, 32.0], 'black_suggestion_border': [136.5, 85.5, 34.5], 'black_small_librety': [152.0, 20.399999999999995, 0.0], 'black_suggestion_small_librety': [148.79999999999998, 52.39999999999999, 32.0], 'board_border': [166.0, 115.0, 64.0], 'grey': [143.2, 122.8, 102.4]};
+        let canvas = document.getElementById('gameCanvas');
+        let ctx = canvas.getContext('2d');
+        let socket;
+        let clientId = 'player_' + Math.random().toString(36).substr(2, 9);
+        let gameState = null;
+        let config = null;
+        let is_control_pressed = false;
+        let transformation = {
+            offsetX: 0,
+            offsetY: 0,
+            scale: 1
+        };
+
+        function init() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            socket = new WebSocket(`ws://${window.location.hostname}:6789`);
+            
+            socket.onopen = () => {
+                socket.send(clientId);
+            };
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'init') {
+                    config = data.config;
+                    gameState = data.state;
+                    render();
+                } else if (data.type === 'update') {
+                    gameState = data.state;
+                    render();
+                }
+                if (data.type === 'save_game') {
+                    // Trigger download
+                    const blob = new Blob([data.game_data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'go_game_save.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            }
+            setupEventListeners();
+            setupSaveLoadHandlers(); 
+        }
+
+        function setupEventListeners() {
+            // Mouse events
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('wheel', handleMouseWheel);
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            
+            // Keyboard events
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+        }
+
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            let actionType = 'mouse_down_left';
+            if (e.button === 2) actionType = 'mouse_down_right';
+            
+            socket.send(JSON.stringify({
+                action_type: actionType,
+                x: x,
+                y: y
+            }));
+        }
+
+        function handleMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            socket.send(JSON.stringify({
+                action_type: 'mouse_move',
+                x: x,
+                y: y,
+                rel_x: e.movementX,
+                rel_y: e.movementY,
+                is_control_pressed: is_control_pressed,
+            }));
+        }
+
+        function handleMouseWheel(e) {
+            e.preventDefault();
+            socket.send(JSON.stringify({
+                action_type: 'mouse_scroll',
+                x: e.clientX,
+                y: e.clientY,
+                value: e.deltaY > 0 ? -1 : 1
+            }));
+        }
+
+        function handleKeyDown(e) {
+            const key = e.key.toLowerCase();
+            if (key === 'control') {
+                console.log('control_is_pressed')
+                is_control_pressed = true;
+            }
+            if (key === 'u') {
+                socket.send(JSON.stringify({
+                    action_type: 'undo'
+                }));
+            } else {
+                socket.send(JSON.stringify({
+                    action_type: 'key_down',
+                    key: key
+                }));
+            } 
+        }
+
+        function handleKeyUp(e) {
+            const key = e.key.toLowerCase();
+            if (key == 'control') {
+                console.log('control_is_realeased')
+                is_control_pressed = false;
+            }
+        }
+
+        function render() {
+            if (!gameState || !config) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply transformation
+            ctx.save();
+            ctx.translate(transformation.offsetX, transformation.offsetY);
+            ctx.scale(transformation.scale, transformation.scale);
+            
+            // Render background
+            renderBackground();
+            
+            // Render board and stones
+            renderPolygons();
+            
+            // Restore transformation
+            ctx.restore();
+            
+            // Render info panel
+            renderInfoPanel();
+        }
+
+        function renderBackground() {
+            if (gameState.background === 'water') {
+                ctx.fillStyle = '#1a3c5a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else if (gameState.background === 'clouds') {
+                ctx.fillStyle = '#87CEEB';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function renderPolygons() {
+            gameState.polygons.forEach(polygon => {
+                ctx.beginPath();
+                polygon.points.forEach((point, i) => {
+                    if (i === 0) {
+                        ctx.moveTo(point[0], point[1]);
+                    } else {
+                        ctx.lineTo(point[0], point[1]);
+                    }
+                });
+                ctx.closePath();
+                
+                ctx.fillStyle = rgbToHex(colors[polygon.color]);
+                
+                ctx.fill("evenodd");
+            });
+        }
+
+        function rgbToHex(rgb) {
+            // Ensure the array has exactly 3 elements (R, G, B)
+            if (rgb.length !== 3) {
+                throw new Error("Array must have exactly 3 elements (R, G, B).");
+            }
+
+            // Clamp values between 0 and 255
+            const [r, g, b] = rgb.map(c => Math.max(0, Math.min(255, Math.round(c))));
+
+            // Convert to hex and pad with zeros if necessary
+            const toHex = (c) => c.toString(16).padStart(2, '0');
+
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        function renderInfoPanel() {
+            const panel = document.getElementById('info-panel');
+            panel.innerHTML = '';
+            
+            Object.entries(gameState.info).forEach(([key, value]) => {
+                const row = document.createElement('div');
+                row.className = 'info-row';
+                
+                const keyElem = document.createElement('div');
+                keyElem.className = 'info-key';
+                keyElem.textContent = `${key}:`;
+                
+                const valueElem = document.createElement('div');
+                valueElem.className = 'info-value';
+                valueElem.textContent = value;
+                
+                row.appendChild(keyElem);
+                row.appendChild(valueElem);
+                panel.appendChild(row);
+            });
+        }
+
+        // Add this new function
+        function setupSaveLoadHandlers() {
+            document.getElementById('saveBtn').addEventListener('click', saveGame);
+            document.getElementById('loadBtn').addEventListener('click', loadGame);
+        }
+
+        // Save game handler
+        function saveGame() {
+            socket.send(JSON.stringify({
+                action_type: 'save_game'
+            }));
+        }
+
+        // Load game handler
+        function loadGame() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const contents = event.target.result;
+                    socket.send(JSON.stringify({
+                        action_type: 'load_game',
+                        game_data: contents
+                    }));
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        window.onload = init;
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            render();
+        };
+    </script>
+</body>
+</html>

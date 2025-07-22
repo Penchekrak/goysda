@@ -48,3 +48,15 @@ class GameStateHistory:
         self.history = json_info["history"]
         self.config = json_info["config"]
         self.current_game_state = GameState(self.config, json=self.history[-1])
+    
+    def to_json_string(self):
+        return json.dumps({
+            "config": self.config,
+            "history": self.history
+        })
+
+    def load_from_json_string(self, json_string):
+        data = json.loads(json_string)
+        self.config = data["config"]
+        self.history = data["history"]
+        self.current_game_state = GameState(self.config, json=self.history[-1])

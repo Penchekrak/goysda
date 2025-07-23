@@ -4,3 +4,7 @@ numpy==2.3.1
 pygame-ce==2.5.5
 pyinstrument==5.0.3
 shapely==2.1.1
+websockets
+flask
+pygame_gui
+flask-socketio

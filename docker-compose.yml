@@ -1,0 +1,21 @@
+services:
+  goysda:
+    image: goysda:current
+    container_name: goysda
+    restart: always
+    network_mode: bridge
+    expose:
+      - "5000"
+    environment:
+      VIRTUAL_HOST: HOSTNAME
+      VIRTUAL_PORT: 5000
+      LETSENCRYPT_HOST: HOSTNAME
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5050/healthcheck" ]
+      interval: 1m
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4

@@ -1,30 +1,42 @@
 import json
-import asyncio
-import websockets
 import threading
+import os
+import uuid
+import shapely
 from flask import Flask, render_template
+from flask_socketio import SocketIO, emit
 from game_history import GameStateHistory
 from handle_input import ActionType
 from transformation import Transformation
 from pygame.locals import *
 import pygame
-import shapely
 import utils
-import os
-import uuid
 
-# Add this function to save games
+
+
+def print_error_if_occured(func):
+    def rt(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            import traceback
+            print(e)
+            traceback.print_exc(e)
+    return rt
+
+
+@print_error_if_occured
 def save_game_session(client_id, game_data):
     os.makedirs("sessions", exist_ok=True)
     filename = f"sessions/{client_id}.json"
     with open(filename, "w") as f:
         json.dump({
             "history": game_data['history'].to_json_string(),
-            "transformation": json.dumps(game_data['transformation'].to_json()),
+            "transformation": game_data['transformation'].to_json(),
             "config": game_data['config']
         }, f)
 
-# Add this function to load games
+@print_error_if_occured
 def load_game_session(client_id):
     filename = f"sessions/{client_id}.json"
     if os.path.exists(filename):
@@ -38,13 +50,18 @@ def load_game_session(client_id):
                 'transformation': transformation,
                 'config': data['config']
             }
-    return Non
+    return None
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 games = {}
 lock = threading.Lock()
+# Setup mouse_move buffers for each client
+mouse_move_buffers = {}
 
-
+@print_error_if_occured
 def handle_web_input(data, transformation, game_history):
     action_type = data.get('action_type')
     actions = []
@@ -121,20 +138,16 @@ def handle_web_input(data, transformation, game_history):
     elif action_type == 'reset_view':
         transformation.reset()
     
-    if "x" in actions:
-        actions["x"], actions["y"] = transformation.screen_to_world(actions["x"], actions["y"])
-    if "rel_x" in actions:
-        actions["rel_x"], actions["rel_y"] = transformation.screen_to_world(actions["rel_x"], actions["rel_y"])
-    
     return actions
 
+@print_error_if_occured
 def game_state_to_dict(game_state, transformation, config):
     polygons = []
     for polygon_or_multipolygon, color in game_state.get_list_of_shapes_to_draw():
         if hasattr(polygon_or_multipolygon, 'geoms'):  # MultiPolygon
             for polygon in polygon_or_multipolygon.geoms:
                 polygons.append({
-                    'points': list(polygon.exterior.coords),
+                    'points': [transformation.world_to_screen(wx, wy) for wx, wy in polygon.exterior.coords],
                     'color': color
                 })
         else:  # Single Polygon
@@ -150,8 +163,18 @@ def game_state_to_dict(game_state, transformation, config):
         'board_style': game_state.board_to_render_list[game_state.board_to_render_index]
     }
 
-async def game_handler(websocket):
-    client_id = await websocket.recv()
+@app.route('/')
+@print_error_if_occured
+def index():
+    return render_template('index.html')
+
+@socketio.on('connect')
+@print_error_if_occured
+def handle_connect(*args):
+    print("Client connected")
+
+@socketio.on('register')
+def handle_register(client_id):
     with lock:
         if client_id not in games:
             config = utils.default_config
@@ -161,6 +184,8 @@ async def game_handler(websocket):
                 'transformation': Transformation(0, 0, shapely.Polygon(config["board_polygon"])),
                 'config': config
             }
+            # Initialize mouse move buffer for this client
+            mouse_move_buffers[client_id] = []
         
         game_data = games[client_id]
         game_history = game_data['history']
@@ -170,144 +195,153 @@ async def game_handler(websocket):
     # Send initial state
     game_history.update(None)
     state = game_state_to_dict(game_history.current_game_state, transformation, config)
-    await websocket.send(json.dumps({
+    emit('init', {
         'type': 'init',
         'state': state,
         'config': config
-    }))
-    
-    # Setup mouse_move buffer
-    mouse_move_buffer = []
-    buffer_lock = asyncio.Lock()
-    frame_duration = 1 / 60  # Adjust FPS as needed
-    
-    # Start frame processor task
-    asyncio.create_task(frame_processor(
-        websocket, game_data, transformation, mouse_move_buffer, buffer_lock, frame_duration
-    ))
-    
-    # Handle messages
-    async for message in websocket:
-        data = json.loads(message)
-        action_type = data.get('action_type')
-        # Add these new handlers
-        if action_type == 'save_game':
-            json_str = game_history.to_json_string()
-            await websocket.send(json.dumps({
-                'type': 'save_game',
-                'game_data': json_str
-            }))
-        elif action_type == 'load_game':
-            game_data_str = data['game_data']
-            game_history.load_from_json_string(game_data_str)
-            # Reset transformation
-            transformation.reset()
-            # Update game data
-            game_data['config'] = game_history.config
-            # Send update
-            game_history.update(None)
-            state = game_state_to_dict(game_history.current_game_state, transformation, game_history.config)
-            await websocket.send(json.dumps({
-                'type': 'update',
-                'state': state
-            }))
-        elif action_type == 'mouse_move':
-            async with buffer_lock:
-                mouse_move_buffer.append(data)
-        else:
-            # Process non-mouse_move actions immediately
-            actions = handle_web_input(data, transformation, game_history)
-            for action in actions:
-                if action["action_type"] == ActionType.MOUSE_SCROLL:
-                    transformation.update_self_zoom(action["x"], action["y"], config["zoom_speed"] * action["value"])
-                elif action["action_type"] == ActionType.MOUSE_MOTION and action.get("is_control_pressed"):
-                    transformation.update_self_drag(action["rel_x"], action["rel_y"])
-                else:
-                    game_history.update(action)
-            # Send update
-            game_history.update(None)
-            state = game_state_to_dict(game_history.current_game_state, transformation, config)
-            await websocket.send(json.dumps({
-                'type': 'update',
-                'state': state
-            }))
+    })
 
-async def frame_processor(websocket, game_data, transformation, mouse_move_buffer, buffer_lock, frame_duration):
-    while True:
-        await asyncio.sleep(frame_duration)
-        async with buffer_lock:
-            if not mouse_move_buffer:
-                continue
-            
-            # Sum relative movements and get last position
-            sum_rel_x = 0
-            sum_rel_y = 0
-            last_x_screen = None
-            last_y_screen = None
-            last_is_control_pressed = None
-
-            for data in mouse_move_buffer:
-                sum_rel_x += data['rel_x']
-                sum_rel_y += data['rel_y']
-                last_x_screen = data['x']
-                last_y_screen = data['y']
-                last_is_control_pressed = data['is_control_pressed']
-
-            # Transform to world coordinates
-            transformation = game_data['transformation']
-            last_x, last_y = transformation.screen_to_world(last_x_screen, last_y_screen)
-            sum_rel_x, sum_rel_y = transformation.screen_to_world(sum_rel_x, sum_rel_y)
-            # Create batched action
-            actions = [{
-                'action_type': ActionType.MOUSE_MOTION,
-                'x': last_x,
-                'y': last_y,
-                'rel_x': sum_rel_x,
-                'rel_y': sum_rel_y,
-                'is_control_pressed': last_is_control_pressed,
-            }]
-            
-            # Apply actions
-            if last_is_control_pressed:
-                transformation.update_self_drag(sum_rel_x, sum_rel_y)
-            else:
-                game_history = game_data['history']
-                for action in actions:
-                    game_history.update(action)
-            
-            # Clear buffer
-            mouse_move_buffer.clear()
-        
-        # Send update after processing
+@socketio.on('game_action')
+@print_error_if_occured
+def handle_game_action(data):
+    client_id = data.get('client_id')
+    
+    if client_id not in games:
+        return
+    
+    game_data = games[client_id]
+    game_history = game_data['history']
+    transformation = game_data['transformation']
+    config = game_data['config']
+    
+    action_type = data.get('action_type')
+    
+    # Handle special actions
+    if action_type == 'save_game':
+        json_str = game_history.to_json_string()
+        emit('save_game', {
+            'type': 'save_game',
+            'game_data': json_str
+        })
+    elif action_type == 'load_game':
+        game_data_str = data['game_data']
+        game_history.load_from_json_string(game_data_str)
+        # Reset transformation
+        transformation.reset()
+        # Update game data
+        game_data['config'] = game_history.config
+        # Send update
         game_history.update(None)
-        state = game_state_to_dict(game_history.current_game_state, transformation, game_data['config'])
-        await websocket.send(json.dumps({
+        state = game_state_to_dict(game_history.current_game_state, transformation, game_history.config)
+        emit('update', {
             'type': 'update',
             'state': state
-        }))
+        })
+    elif action_type == 'mouse_move':
+        # Add to mouse move buffer for batched processing
+        with lock:
+            mouse_move_buffers[client_id].append(data)
+    else:
+        # Process non-mouse_move actions immediately
+        actions = handle_web_input(data, transformation, game_history)
+        for action in actions:
+            if action["action_type"] == ActionType.MOUSE_SCROLL:
+                transformation.update_self_zoom(action["x"], action["y"], config["zoom_speed"] * action["value"])
+            elif action["action_type"] == ActionType.MOUSE_MOTION and action.get("is_control_pressed"):
+                transformation.update_self_drag(action["rel_x"], action["rel_y"])
+            else:
+                game_history.update(action)
+        # Send update
+        game_history.update(None)
+        state = game_state_to_dict(game_history.current_game_state, transformation, config)
+        emit('update', {
+            'type': 'update',
+            'state': state
+        })
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-# Add periodic saving
-async def session_saver():
+@print_error_if_occured
+def process_mouse_moves():
+    """Process batched mouse moves for all clients"""
     while True:
-        await asyncio.sleep(5)  # Save every 60 seconds
+        with lock:
+            for client_id, buffer in list(mouse_move_buffers.items()):
+                if not buffer or client_id not in games:
+                    continue
+                
+                game_data = games[client_id]
+                transformation = game_data['transformation']
+                game_history = game_data['history']
+                
+                # Sum relative movements and get last position
+                sum_rel_x = 0
+                sum_rel_y = 0
+                last_x_screen = None
+                last_y_screen = None
+                last_is_control_pressed = None
+
+                for data in buffer:
+                    sum_rel_x += data['rel_x']
+                    sum_rel_y += data['rel_y']
+                    last_x_screen = data['x']
+                    last_y_screen = data['y']
+                    last_is_control_pressed = data['is_control_pressed']
+
+                # Transform to world coordinates
+                last_x, last_y = transformation.screen_to_world(last_x_screen, last_y_screen)
+                
+                # Create batched action
+                action = {
+                    'action_type': ActionType.MOUSE_MOTION,
+                    'x': last_x,
+                    'y': last_y,
+                    'rel_x': sum_rel_x,
+                    'rel_y': sum_rel_y,
+                    'is_control_pressed': last_is_control_pressed,
+                }
+                
+                # Apply actions
+                if last_is_control_pressed:
+                    transformation.update_self_drag(sum_rel_x, sum_rel_y)
+                else:
+                    game_history.update(action)
+                
+                # Clear buffer
+                buffer.clear()
+                
+                # Send update
+                game_history.update(None)
+                state = game_state_to_dict(game_history.current_game_state, transformation, game_data['config'])
+                socketio.emit('update', {
+                    'type': 'update',
+                    'state': state
+                }) #, room=client_id)
+
+                # print(f"sending update {client_id = }, stone = {[elem for elem in state['polygons'] if "black" in elem["color"]][0]}")
+        
+        # Wait for next frame
+        socketio.sleep(1/60)
+
+@print_error_if_occured
+def save_sessions_periodically():
+    """Periodically save all game sessions"""
+    while True:
+        socketio.sleep(5)  # Save every 5 seconds
         with lock:
             for client_id, game_data in games.items():
                 save_game_session(client_id, game_data)
 
-# Update start_websocket
-async def start_websocket():
-    os.makedirs("sessions", exist_ok=True)
-    async with websockets.serve(game_handler, "localhost", 6789) as server:
-        await asyncio.gather(session_saver(), server.serve_forever())
-
-def start_app():
-    app.run(port=5000)
+@socketio.on('disconnect')
+@print_error_if_occured
+def handle_disconnect(*args):
+    print("Client disconnected")
+    # Could add client cleanup here if needed
 
 if __name__ == '__main__':
-    threading.Thread(group=None, target=start_app, daemon=False).start()
-    asyncio.run(start_websocket())
+    os.makedirs("sessions", exist_ok=True)
     
+    # Start background threads
+    socketio.start_background_task(process_mouse_moves)
+    socketio.start_background_task(save_sessions_periodically)
+    
+    # Start the server
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)

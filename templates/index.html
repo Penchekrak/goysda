@@ -2,6 +2,8 @@
 <html>
 <head>
     <title>Go Game</title>
+    <!-- Add Socket.IO client library -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB;}
         canvas {
@@ -108,35 +110,44 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             
-            socket = new WebSocket(`ws://${window.location.hostname}:6789`);
+            // Connect using Socket.IO instead of WebSocket
+            socket = io();
             
-            socket.onopen = () => {
-                socket.send(clientId);
-            };
+            // Socket.IO event handlers
+            socket.on('connect', function() {
+                console.log("Connection established");
+                socket.emit('register', clientId);
+            });
             
-            socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'init') {
-                    config = data.config;
-                    gameState = data.state;
-                    render();
-                } else if (data.type === 'update') {
-                    gameState = data.state;
-                    render();
-                }
-                if (data.type === 'save_game') {
-                    // Trigger download
-                    const blob = new Blob([data.game_data], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'go_game_save.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }
-            }
+            socket.on('init', function(data) {
+                config = data.config;
+                gameState = data.state;
+                render();
+            });
+            
+            socket.on('update', function(data) {
+                console.log("on 'update' data = ", data)
+                gameState = data.state;
+                render();
+            });
+            
+            socket.on('save_game', function(data) {
+                // Trigger download
+                const blob = new Blob([data.game_data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'go_game_save.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            
+            socket.on('disconnect', function() {
+                console.log("Connection closed");
+            });
+            
             setupEventListeners();
             setupSaveLoadHandlers(); 
         }
@@ -164,38 +175,45 @@
             let actionType = 'mouse_down_left';
             if (e.button === 2) actionType = 'mouse_down_right';
             
-            socket.send(JSON.stringify({
+            // Use Socket.IO emit instead of WebSocket send
+            socket.emit('game_action', {
+                client_id: clientId,
                 action_type: actionType,
                 x: x,
                 y: y
-            }));
+            });
         }
 
         function handleMouseMove(e) {
             let x, y;
             [x, y] = get_xy(e)
-            console.log("x = ", x, "y = ", y)
-
-            socket.send(JSON.stringify({
+            console.log("mousemove: x = ", x, "y = ", y, "client_id", clientId)
+            
+            // Use Socket.IO emit instead of WebSocket send
+            socket.emit('game_action', {
+                client_id: clientId,
                 action_type: 'mouse_move',
                 x: x,
                 y: y,
                 rel_x: e.movementX,
                 rel_y: e.movementY,
                 is_control_pressed: is_control_pressed,
-            }));
+            });
         }
 
         function handleMouseWheel(e) {
             let x, y;
             [x, y] = get_xy(e);
             e.preventDefault();
-            socket.send(JSON.stringify({
+            
+            // Use Socket.IO emit instead of WebSocket send
+            socket.emit('game_action', {
+                client_id: clientId,
                 action_type: 'mouse_scroll',
                 x: x,
                 y: y,
                 value: e.deltaY > 0 ? -1 : 1
-            }));
+            });
         }
 
         function handleKeyDown(e) {
@@ -205,14 +223,18 @@
                 is_control_pressed = true;
             }
             if (key === 'u') {
-                socket.send(JSON.stringify({
+                // Use Socket.IO emit instead of WebSocket send
+                socket.emit('game_action', {
+                    client_id: clientId,
                     action_type: 'undo'
-                }));
+                });
             } else {
-                socket.send(JSON.stringify({
+                // Use Socket.IO emit instead of WebSocket send
+                socket.emit('game_action', {
+                    client_id: clientId,
                     action_type: 'key_down',
                     key: key
-                }));
+                });
             } 
         }
 
@@ -225,6 +247,7 @@
         }
 
         function render() {
+            console.log("render() is called")
             if (!gameState || !config) return;
             
             // Clear canvas
@@ -324,9 +347,11 @@
 
         // Save game handler
         function saveGame() {
-            socket.send(JSON.stringify({
+            // Use Socket.IO emit instead of WebSocket send
+            socket.emit('game_action', {
+                client_id: clientId,
                 action_type: 'save_game'
-            }));
+            });
         }
 
         // Load game handler
@@ -339,10 +364,12 @@
                 const reader = new FileReader();
                 reader.onload = event => {
                     const contents = event.target.result;
-                    socket.send(JSON.stringify({
+                    // Use Socket.IO emit instead of WebSocket send
+                    socket.emit('game_action', {
+                        client_id: clientId,
                         action_type: 'load_game',
                         game_data: contents
-                    }));
+                    });
                 };
                 reader.readAsText(file);
             };

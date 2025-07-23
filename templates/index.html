@@ -56,14 +56,10 @@
         #controls {
             position: fixed;
             top: 10px;
-            left: 10px;
-            z-index: 100;
-        }
-        #saveBtn, #loadBtn {
-            display: flex;
-            position: fixed;
             left: 50%;
-
+            transform: translateX(-50%);
+            z-index: 100;
+            
             padding: 8px 15px;
             margin-right: 10px;
             background: rgba(0, 0, 0, 0.7);
@@ -73,12 +69,6 @@
             cursor: pointer;
         }
 
-        #saveBtn {
-            transform: translateX(-50%);
-        }
-        #loadBtn {
-            transform: translateX(+50%);
-        }
         
     </style>
 </head>
@@ -89,6 +79,9 @@
     <div id="controls">
         <button id="saveBtn">Save Game</button>
         <button id="loadBtn">Load Game</button>
+        <label id="groupId"></label>
+        <button id="joinBtn" onclick="rejoin()">Join Group</button>
+        <input type="text" id="input_group_id" name="input_group_id" placeholder="Enter id of room to join here">
     </div>
     
     <script>
@@ -105,10 +98,15 @@
             offsetY: 0,
             scale: 1
         };
+        function get_xy(e) {
+            const rect = canvas.getBoundingClientRect();
+            return [e.clientX - rect.left, e.clientY - rect.top]
+        }
 
         function init() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            document.getElementById("groupId").textContent = "Your group id: " + clientId;
             
             // Connect using Socket.IO instead of WebSocket
             socket = io();
@@ -126,7 +124,6 @@
             });
             
             socket.on('update', function(data) {
-                console.log("on 'update' data = ", data)
                 gameState = data.state;
                 render();
             });
@@ -151,7 +148,13 @@
             setupEventListeners();
             setupSaveLoadHandlers(); 
         }
-
+        
+        function rejoin() {
+            let new_group_id = document.getElementById("input_group_id").value;
+            console.log("new_group_id", new_group_id)
+            socket.emit('join_new_group', [clientId, new_group_id])
+            clientId = new_group_id
+        }
         function setupEventListeners() {
             // Mouse events
             canvas.addEventListener('mousedown', handleMouseDown);
@@ -162,11 +165,6 @@
             // Keyboard events
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
-        }
-
-        function get_xy(e) {
-            const rect = canvas.getBoundingClientRect();
-            return [e.clientX - rect.left, e.clientY - rect.top]
         }
 
         function handleMouseDown(e) {
@@ -187,7 +185,6 @@
         function handleMouseMove(e) {
             let x, y;
             [x, y] = get_xy(e)
-            console.log("mousemove: x = ", x, "y = ", y, "client_id", clientId)
             
             // Use Socket.IO emit instead of WebSocket send
             socket.emit('game_action', {
@@ -219,7 +216,6 @@
         function handleKeyDown(e) {
             const key = e.key.toLowerCase();
             if (key === 'control') {
-                console.log('control_is_pressed')
                 is_control_pressed = true;
             }
             if (key === 'u') {
@@ -241,7 +237,6 @@
         function handleKeyUp(e) {
             const key = e.key.toLowerCase();
             if (key == 'control') {
-                console.log('control_is_realeased')
                 is_control_pressed = false;
             }
         }

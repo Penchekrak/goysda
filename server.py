@@ -4,7 +4,7 @@ import os
 import uuid
 import shapely
 from flask import Flask, render_template
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from game_history import GameStateHistory
 from handle_input import ActionType
 from transformation import Transformation
@@ -202,6 +202,15 @@ def handle_register(client_id):
         'state': state,
         'config': config
     }, room=client_id)
+
+
+@socketio.on('join_new_group')
+def join_new_group(data):
+    client_id, new_group = data
+    print(f"{client_id = } joins {new_group = }")
+    leave_room(client_id)
+    join_room(new_group)
+
 
 @socketio.on('game_action')
 @print_error_if_occured

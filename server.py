@@ -4,7 +4,7 @@ import os
 import uuid
 import shapely
 from flask import Flask, render_template
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
 from game_history import GameStateHistory
 from handle_input import ActionType
 from transformation import Transformation
@@ -174,7 +174,9 @@ def handle_connect(*args):
     print("Client connected")
 
 @socketio.on('register')
+@print_error_if_occured
 def handle_register(client_id):
+    join_room(client_id)
     with lock:
         if client_id not in games:
             config = utils.default_config
@@ -195,11 +197,11 @@ def handle_register(client_id):
     # Send initial state
     game_history.update(None)
     state = game_state_to_dict(game_history.current_game_state, transformation, config)
-    emit('init', {
+    socketio.emit('init', {
         'type': 'init',
         'state': state,
         'config': config
-    })
+    }, room=client_id)
 
 @socketio.on('game_action')
 @print_error_if_occured
@@ -219,10 +221,10 @@ def handle_game_action(data):
     # Handle special actions
     if action_type == 'save_game':
         json_str = game_history.to_json_string()
-        emit('save_game', {
+        socketio.emit('save_game', {
             'type': 'save_game',
             'game_data': json_str
-        })
+        }, room=client_id)
     elif action_type == 'load_game':
         game_data_str = data['game_data']
         game_history.load_from_json_string(game_data_str)
@@ -233,10 +235,10 @@ def handle_game_action(data):
         # Send update
         game_history.update(None)
         state = game_state_to_dict(game_history.current_game_state, transformation, game_history.config)
-        emit('update', {
+        socketio.emit('update', {
             'type': 'update',
             'state': state
-        })
+        }, room=client_id)
     elif action_type == 'mouse_move':
         # Add to mouse move buffer for batched processing
         with lock:
@@ -254,10 +256,10 @@ def handle_game_action(data):
         # Send update
         game_history.update(None)
         state = game_state_to_dict(game_history.current_game_state, transformation, config)
-        emit('update', {
+        socketio.emit('update', {
             'type': 'update',
             'state': state
-        })
+        }, room=client_id)
 
 @print_error_if_occured
 def process_mouse_moves():
@@ -314,7 +316,7 @@ def process_mouse_moves():
                 socketio.emit('update', {
                     'type': 'update',
                     'state': state
-                }) #, room=client_id)
+                }, room=client_id)
 
                 # print(f"sending update {client_id = }, stone = {[elem for elem in state['polygons'] if "black" in elem["color"]][0]}")
         

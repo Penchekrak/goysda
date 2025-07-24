@@ -155,6 +155,7 @@
             socket.emit('join_new_group', [clientId, new_group_id])
             clientId = new_group_id
         }
+        
         function setupEventListeners() {
             // Mouse events
             canvas.addEventListener('mousedown', handleMouseDown);

@@ -104,7 +104,7 @@ class GameState:
         self.update(action=None)
     
     def update_placed_stone_structure(self):
-        self.cached_stone_structures.update("placed_stones", {"args": (self.placed_stones,)})
+        self.cached_stone_structures.update("placed_stones", {"args": (remove_duplicate_stones(self.placed_stones),)})
     
     def update_structure_for_snapping(self):
         stones = remove_duplicate_stones(self.placed_stones + self._get_active_fake_stones())
@@ -380,9 +380,9 @@ class GameState:
                 polygons_list.append((polygon_or_multipolygon, color))
             elif type(polygon_or_multipolygon) == shapely.MultiPolygon:
                 polygons_list.extend([(polygon, color) for polygon in polygon_or_multipolygon.geoms])
-            else:
-                print(type(polygon_or_multipolygon))
-                raise NotImplementedError
+            # else:
+            #     print(type(polygon_or_multipolygon))
+            #     raise NotImplementedError
         
         polygons_list2 = []
         for polygon, color in polygons_list:

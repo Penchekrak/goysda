@@ -440,6 +440,5 @@ def remove_duplicate_stones(stones):
         stone = stones[i]
         while (stone.x, stone.y) in d:
             stone.x += 1e-10
-            print(f"Here {stone.x, stone.y}")
         d[(stone.x, stone.y)] = stone
     return stones

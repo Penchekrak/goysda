@@ -302,7 +302,7 @@ def process_mouse_moves():
 
                 # Transform to world coordinates
                 last_x, last_y = transformation.screen_to_world(last_x_screen, last_y_screen)
-                
+                sum_rel_x, sum_rel_y = transformation.screen_to_world(sum_rel_x, sum_rel_y)
                 # Create batched action
                 action = {
                     'action_type': ActionType.MOUSE_MOTION,

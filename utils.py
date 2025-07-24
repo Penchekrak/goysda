@@ -434,7 +434,12 @@ def get_readable_filepath():
 
 def remove_duplicate_stones(stones):
     """ If several stones placed on (x, y) it removes all except the first one """
+    # return stones
     d = dict()
-    for stone in stones[::-1]:
+    for i in range(len(stones) - 1, -1, -1):
+        stone = stones[i]
+        while (stone.x, stone.y) in d:
+            stone.x += 1e-10
+            print(f"Here {stone.x, stone.y}")
         d[(stone.x, stone.y)] = stone
-    return list(d.values())
+    return stones

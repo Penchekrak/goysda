@@ -252,7 +252,8 @@ def handle_game_action(data):
     elif action_type == 'mouse_move':
         # Add to mouse move buffer for batched processing
         with lock:
-            mouse_move_buffers[client_id].append(data)
+            if all(data.get(elem, None) is not None for elem in ["x", "y", "rel_x", "rel_y"]):
+                mouse_move_buffers[client_id].append(data)
     else:
         # Process non-mouse_move actions immediately
         actions = handle_web_input(data, transformation, game_history)
@@ -262,7 +263,8 @@ def handle_game_action(data):
             elif action["action_type"] == ActionType.MOUSE_MOTION and action.get("is_control_pressed"):
                 transformation.update_self_drag(action["rel_x"], action["rel_y"])
             else:
-                game_history.update(action)
+                if all(elem not in action or action.get(elem, None) is not None for elem in ["x", "y"]):
+                    game_history.update(action)
         # Send update
         game_history.update(None)
         state = game_state_to_dict(game_history.current_game_state, transformation, config)

@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import threading
 import os
@@ -20,8 +21,7 @@ def print_error_if_occured(func):
             return func(*args, **kwargs)
         except Exception as e:
             import traceback
-            print(e)
-            traceback.print_exc(e)
+            traceback.print_exc()
     return rt
 
 
@@ -59,7 +59,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 games = {}
 lock = threading.Lock()
 # Setup mouse_move buffers for each client
-mouse_move_buffers = {}
+mouse_move_buffers = defaultdict(list)
 
 @print_error_if_occured
 def handle_web_input(data, transformation, game_history):
@@ -207,10 +207,11 @@ def handle_register(client_id):
 @socketio.on('join_new_group')
 def join_new_group(data):
     client_id, new_group = data
-    print(f"{client_id = } joins {new_group = }")
     leave_room(client_id)
-    join_room(new_group)
-
+    if new_group not in games:
+        handle_register(new_group)
+    else:
+        join_room(new_group)
 
 @socketio.on('game_action')
 @print_error_if_occured

@@ -100,6 +100,9 @@ def handle_web_input(data, transformation, game_history):
     elif action_type == 'key_down':
         key_map = {
             'control': K_LCTRL,
+            '1': K_1,
+            '2': K_2,
+            '3': K_3,
             'a': K_a,
             'b': K_b,
             'c': K_c,

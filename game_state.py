@@ -246,6 +246,9 @@ class GameState:
     
     def handle_move(self, action=None):
         x, y = self._snap_stone(self.previous_move_action["x"], self.previous_move_action["y"])
+        if x is None or y is None:
+            self.dont_show_suggestion_stone = True
+            return
         self.suggestion_stone = Stone(x, y, self.colors[self.player_to_move] + "_suggestion")
         
         self.update_preview_structure()
